@@ -65,38 +65,51 @@ async function runWatchDemo(page) {
   await page.getByRole("button", { name: "Begin Run" }).click();
   await page.waitForTimeout(700);
 
-  // Keep the camera in a safe, readable part of the first room.
-  await teleport(page, "ridge-1", 24, 178);
-  await page.waitForTimeout(500);
+  const resetToSafeSpawn = async () => {
+    await teleport(page, "ridge-1", 24, 178);
+    await page.waitForTimeout(700);
+  };
 
+  await resetToSafeSpawn();
   await pressSequence(page, [
-    { type: "down", key: "ArrowRight", note: "Short grounded movement" },
-    { type: "wait", ms: 700 },
+    { type: "down", key: "ArrowRight", note: "Ground movement" },
+    { type: "wait", ms: 260 },
     { type: "up", key: "ArrowRight" },
-    { type: "wait", ms: 500 },
-    { type: "press", key: "k", note: "Jump" },
-    { type: "wait", ms: 700 },
-    { type: "down", key: "ArrowRight", note: "Jump then dash" },
-    { type: "wait", ms: 220 },
-    { type: "press", key: "j" },
-    { type: "wait", ms: 500 },
-    { type: "up", key: "ArrowRight" },
-    { type: "wait", ms: 600 },
+    { type: "wait", ms: 900 },
   ]);
 
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(600);
-  await page.getByRole("button", { name: "Resume" }).click();
-  await page.waitForTimeout(700);
+  await resetToSafeSpawn();
+  await pressSequence(page, [
+    { type: "press", key: "k", note: "Jump" },
+    { type: "wait", ms: 900 },
+  ]);
 
-  await page.keyboard.press("r");
-  await page.waitForTimeout(500);
-  await page.getByRole("button", { name: "Retry" }).click();
+  await resetToSafeSpawn();
+  await pressSequence(page, [
+    { type: "down", key: "ArrowRight", note: "Dash" },
+    { type: "wait", ms: 120 },
+    { type: "press", key: "j" },
+    { type: "wait", ms: 700 },
+    { type: "up", key: "ArrowRight" },
+    { type: "wait", ms: 900 },
+  ]);
+
+  await resetToSafeSpawn();
+  logStep("Pause and resume");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(900);
+  await page.getByRole("button", { name: "Resume" }).click();
   await page.waitForTimeout(900);
 
-  // Leave the page open briefly at a stable spawn so it is easy to inspect.
-  await teleport(page, "ridge-1", 24, 178);
-  await page.waitForTimeout(2000);
+  await resetToSafeSpawn();
+  logStep("Retry");
+  await page.keyboard.press("r");
+  await page.waitForTimeout(700);
+  await page.getByRole("button", { name: "Retry" }).click();
+  await page.waitForTimeout(1200);
+
+  await resetToSafeSpawn();
+  await page.waitForTimeout(1200);
 }
 
 async function main() {
