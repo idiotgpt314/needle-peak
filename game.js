@@ -126,10 +126,13 @@ const playerPoseImages = Object.fromEntries(
 const PLAYER_POSE_OFFSETS = {
   idle: { x: 0, y: 0 },
   stand: { x: 0, y: 0 },
-  walk1: { x: 0, y: 0 },
+  // Kenney's frames are not perfectly centered inside the 80x110 sheet.
+  // These offsets keep the body anchored instead of wobbling frame-to-frame.
+  walk1: { x: 1, y: 0 },
+  walk2: { x: -1, y: 0 },
   jump: { x: 0, y: 0 },
-  fall: { x: 0, y: 0 },
-  dash: { x: 0, y: 0 },
+  fall: { x: -1, y: 0 },
+  dash: { x: -3, y: 0 },
 };
 
 const roomDefs = [
@@ -1156,7 +1159,7 @@ function updatePlayer(dt) {
 
   const groundedMovement = player.onGround && inputX !== 0 && Math.abs(player.vx) > 28;
   if (groundedMovement) {
-    const cadence = Math.abs(player.vx) > 70 ? 0.14 : 0.18;
+    const cadence = Math.abs(player.vx) > 70 ? 0.16 : 0.21;
     player.walkFrameTimer += dt;
     if (player.walkFrameTimer >= cadence) {
       player.walkFrameTimer -= cadence;
@@ -1477,7 +1480,7 @@ function currentPlayerPoseImage() {
     if (player.walkFrame === 0) {
       return { image: playerPoseImages.stand, offset: PLAYER_POSE_OFFSETS.stand };
     }
-    return { image: playerPoseImages.walk1, offset: PLAYER_POSE_OFFSETS.walk1 };
+    return { image: playerPoseImages.walk2, offset: PLAYER_POSE_OFFSETS.walk2 };
   }
   if (Math.abs(player.vx) > 18 && player.moveIntentX !== 0 && Math.sign(player.vx) !== Math.sign(player.moveIntentX)) {
     return { image: playerPoseImages.stand, offset: PLAYER_POSE_OFFSETS.stand };
