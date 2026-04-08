@@ -524,7 +524,7 @@ function parseRoom(def, index) {
       if (char === "r") room.crumbles.push({ x: px, y: py, w: TILE, h: TILE, state: "solid", timer: 0 });
       if (char === "c") room.checkpoints.push({ x: px + 2, y: py + 2, w: TILE - 4, h: TILE - 4 });
       if (char === "g" || char === "G") room.goal = { x: px + 2, y: py + 2, w: TILE - 4, h: TILE - 4 };
-      if (char === "P") room.spawn = { x: px + 3, y: py + 1 };
+      if (char === "P") room.spawn = { x: px + 3, y: py + 2 };
     });
   });
 
