@@ -45,12 +45,14 @@ body {
 }
 
 canvas {
-  width: min(100%, 1440px);
-  max-height: calc(100vh - 72px);
-  aspect-ratio: 12 / 7;
+  width: 384px;
+  height: 224px;
   image-rendering: pixelated;
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(159, 215, 255, 0.2), rgba(12, 21, 33, 0.55));
+  display: block;
+  max-width: none;
+  max-height: none;
 }
 
 .overlay {

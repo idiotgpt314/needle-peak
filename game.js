@@ -1,6 +1,7 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
+const gamePanel = document.querySelector(".game-panel");
 
 const overlay = document.getElementById("overlay");
 const overlayTitle = document.getElementById("overlayTitle");
@@ -105,68 +106,37 @@ const STARFIELD = Array.from({ length: 28 }, (_, index) => ({
   alpha: 0.05 + (index % 4) * 0.018,
 }));
 
-const PLAYER_SHEET_FILE = "./assets/platformer-sprite/hero.png";
-const PLAYER_FRAME_SIZE = 32;
-const PLAYER_WALK_SEQUENCE = ["walkA", "walkB", "walkC", "walkD"];
-const PLAYER_FRAME_DEFS = {
-  idle: { frame: 1, offset: { x: 0, y: 0 } },
-  stand: { frame: 1, offset: { x: 0, y: 0 } },
-  walkA: { frame: 0, offset: { x: 0, y: 0 } },
-  walkB: { frame: 2, offset: { x: 0, y: 0 } },
-  walkC: { frame: 3, offset: { x: 0, y: 0 } },
-  walkD: { frame: 4, offset: { x: 0, y: 0 } },
-  jump: { frame: 5, offset: { x: 0, y: 0 } },
-  fall: { frame: 7, offset: { x: 0, y: 0 } },
-  dash: { frame: 7, offset: { x: 0, y: 0 } },
-  brake: { frame: 4, offset: { x: 0, y: 0 } },
+const PLAYER_POSE_FILES = {
+  stand: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_stand.png",
+  idle: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_idle.png",
+  walk1: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_walk1.png",
+  walk2: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_walk2.png",
+  jump: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_jump.png",
+  fall: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_fall.png",
+  dash: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_skid.png",
 };
-const PLAYER_SPRITE_DRAW_W = 16;
-const PLAYER_SPRITE_DRAW_H = 16;
 
-const playerSheetImage = new Image();
-playerSheetImage.src = PLAYER_SHEET_FILE;
-const playerPoseImages = {};
+const playerPoseImages = Object.fromEntries(
+  Object.entries(PLAYER_POSE_FILES).map(([key, src]) => {
+    const image = new Image();
+    image.src = src;
+    return [key, image];
+  })
+);
 
-function buildPlayerFrame(frameIndex) {
-  const frameCanvas = document.createElement("canvas");
-  frameCanvas.width = PLAYER_FRAME_SIZE;
-  frameCanvas.height = PLAYER_FRAME_SIZE;
-  const frameCtx = frameCanvas.getContext("2d", { willReadFrequently: true });
-  frameCtx.imageSmoothingEnabled = false;
-  frameCtx.drawImage(
-    playerSheetImage,
-    frameIndex * PLAYER_FRAME_SIZE,
-    0,
-    PLAYER_FRAME_SIZE,
-    PLAYER_FRAME_SIZE,
-    0,
-    0,
-    PLAYER_FRAME_SIZE,
-    PLAYER_FRAME_SIZE
-  );
-
-  const imageData = frameCtx.getImageData(0, 0, PLAYER_FRAME_SIZE, PLAYER_FRAME_SIZE);
-  const { data } = imageData;
-  for (let i = 0; i < data.length; i += 4) {
-    if (data[i] === 255 && data[i + 1] === 0 && data[i + 2] === 255) {
-      data[i + 3] = 0;
-    }
-  }
-  frameCtx.putImageData(imageData, 0, 0);
-  return frameCanvas;
-}
-
-function buildPlayerFrames() {
-  Object.entries(PLAYER_FRAME_DEFS).forEach(([key, def]) => {
-    playerPoseImages[key] = buildPlayerFrame(def.frame);
-  });
-}
-
-if (playerSheetImage.complete) {
-  buildPlayerFrames();
-} else {
-  playerSheetImage.addEventListener("load", buildPlayerFrames, { once: true });
-}
+const PLAYER_WALK_SEQUENCE = ["walk1"];
+const PLAYER_POSE_OFFSETS = {
+  idle: { x: 0, y: 0 },
+  stand: { x: 0, y: 0 },
+  walk1: { x: 1, y: 0 },
+  walk2: { x: -1, y: 0 },
+  jump: { x: 0, y: 0 },
+  fall: { x: -1, y: 0 },
+  dash: { x: -3, y: 0 },
+  brake: { x: 0, y: 0 },
+};
+const PLAYER_SPRITE_DRAW_W = 14;
+const PLAYER_SPRITE_DRAW_H = 19;
 
 const roomDefs = [
   {
@@ -1192,12 +1162,8 @@ function updatePlayer(dt) {
 
   const groundedMovement = player.onGround && inputX !== 0 && Math.abs(player.vx) > 28;
   if (groundedMovement) {
-    const cadence = Math.abs(player.vx) > 70 ? 0.11 : 0.14;
-    player.walkFrameTimer += dt;
-    if (player.walkFrameTimer >= cadence) {
-      player.walkFrameTimer -= cadence;
-      player.walkFrame = (player.walkFrame + 1) % PLAYER_WALK_SEQUENCE.length;
-    }
+    player.walkFrame = 0;
+    player.walkFrameTimer = 0;
   } else {
     player.walkFrame = 0;
     player.walkFrameTimer = 0;
@@ -1524,12 +1490,10 @@ function currentPlayerPoseImage() {
   else if (animationState === "jump") key = "jump";
   else if (animationState === "brake") key = "brake";
   else if (animationState === "walk") key = PLAYER_WALK_SEQUENCE[player.walkFrame];
-
-  const frameDef = PLAYER_FRAME_DEFS[key];
   return {
     key,
     image: playerPoseImages[key],
-    offset: frameDef.offset,
+    offset: PLAYER_POSE_OFFSETS[key] || PLAYER_POSE_OFFSETS.idle,
   };
 }
 
@@ -1652,6 +1616,27 @@ function drawHudOverlay() {
   }
 }
 
+function updateCanvasPresentation() {
+  const panelRect = gamePanel.getBoundingClientRect();
+  const panelStyles = window.getComputedStyle(gamePanel);
+  const availableWidth = Math.max(
+    WORLD_W,
+    Math.floor(panelRect.width - parseFloat(panelStyles.paddingLeft) - parseFloat(panelStyles.paddingRight))
+  );
+  let availableHeight = Math.max(
+    WORLD_H,
+    Math.floor(panelRect.height - parseFloat(panelStyles.paddingTop) - parseFloat(panelStyles.paddingBottom))
+  );
+
+  if (window.matchMedia("(pointer: coarse), (max-width: 960px)").matches) {
+    availableHeight = Math.max(WORLD_H, availableHeight - 112);
+  }
+
+  const scale = Math.max(1, Math.floor(Math.min(availableWidth / WORLD_W, availableHeight / WORLD_H)));
+  canvas.style.width = `${WORLD_W * scale}px`;
+  canvas.style.height = `${WORLD_H * scale}px`;
+}
+
 let lastTime = performance.now();
 
 function frame(now) {
@@ -1684,6 +1669,10 @@ showOverlay(
 );
 bindTouchControls();
 respawnAtCheckpoint();
+updateCanvasPresentation();
+
+window.addEventListener("resize", updateCanvasPresentation);
+new ResizeObserver(updateCanvasPresentation).observe(gamePanel);
 
 window.__needlePeakDebug = {
   getSnapshot() {
