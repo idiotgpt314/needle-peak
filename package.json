@@ -5,7 +5,10 @@
   "main": "game.js",
   "type": "commonjs",
   "scripts": {
-    "playtest": "node scripts/playtest.js"
+    "playtest": "node scripts/playtest.js",
+    "playtest:watch": "node scripts/playtest.js --headed --watch --slow=180",
+    "soak": "bash scripts/soak-playtest.sh",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
