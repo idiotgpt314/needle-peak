@@ -685,6 +685,9 @@ const player = {
   respawnFlash: 0,
   trail: [],
   trailTimer: 0,
+  moveIntentX: 0,
+  walkFrame: 0,
+  walkFrameTimer: 0,
 };
 
 const tileCollisionHit = { x: 0, y: 0, w: TILE, h: TILE };
@@ -864,6 +867,9 @@ function respawnAtCheckpoint() {
   player.respawnFlash = 0.4;
   player.trail = [];
   player.trailTimer = 0;
+  player.moveIntentX = 0;
+  player.walkFrame = 0;
+  player.walkFrameTimer = 0;
   state.transitionCooldown = 0.15;
   state.transitionFlash = 0.28;
   state.roomIntroTimer = 1.25;
@@ -1056,6 +1062,7 @@ function updatePlayer(dt) {
 
   const inputX = (btn("right") ? 1 : 0) - (btn("left") ? 1 : 0);
   const inputY = (btn("down") ? 1 : 0) - (btn("up") ? 1 : 0);
+  player.moveIntentX = inputX;
 
   if (inputX !== 0) player.facing = inputX;
 
@@ -1136,6 +1143,19 @@ function updatePlayer(dt) {
     const wallSliding = player.wallDir !== 0 && !player.onGround && inputX === player.wallDir && player.vy > 0;
     const gravity = wallSliding ? 310 : btn("jump") && player.vy < 0 ? 360 : 620;
     player.vy = clamp(player.vy + gravity * dt, -220, wallSliding ? 54 : 188);
+  }
+
+  const groundedMovement = player.onGround && inputX !== 0 && Math.abs(player.vx) > 28;
+  if (groundedMovement) {
+    const cadence = Math.abs(player.vx) > 70 ? 0.14 : 0.18;
+    player.walkFrameTimer += dt;
+    if (player.walkFrameTimer >= cadence) {
+      player.walkFrameTimer -= cadence;
+      player.walkFrame = player.walkFrame === 0 ? 1 : 0;
+    }
+  } else {
+    player.walkFrame = 0;
+    player.walkFrameTimer = 0;
   }
 
   const standingOnMover = room.movers.find((mover) => (
@@ -1431,8 +1451,11 @@ function currentPlayerSprite() {
 
   if (player.dashTimer > 0) return dash;
   if (!player.onGround) return jump;
-  if (Math.abs(player.vx) > 38) {
-    return Math.floor(state.visualTime * 10) % 2 === 0 ? runA : runB;
+  if (player.moveIntentX !== 0 && Math.abs(player.vx) > 28) {
+    return player.walkFrame === 0 ? runA : runB;
+  }
+  if (Math.abs(player.vx) > 18 && player.moveIntentX !== 0 && Math.sign(player.vx) !== Math.sign(player.moveIntentX)) {
+    return standing;
   }
   return standing;
 }
@@ -1441,11 +1464,12 @@ function currentPlayerPoseImage() {
   if (player.dashTimer > 0) return playerPoseImages.dash;
   if (!player.onGround && player.vy > 40) return playerPoseImages.fall;
   if (!player.onGround) return playerPoseImages.jump;
-  if (Math.abs(player.vx) > 38) {
-    const walkFrame = Math.floor(state.visualTime * Math.max(3, Math.abs(player.vx) / 18)) % 2;
-    return walkFrame === 0 ? playerPoseImages.walk1 : playerPoseImages.walk2;
+  if (player.moveIntentX !== 0 && Math.abs(player.vx) > 28) {
+    return player.walkFrame === 0 ? playerPoseImages.walk1 : playerPoseImages.walk2;
   }
-  if (Math.abs(player.vx) > 8) return playerPoseImages.stand;
+  if (Math.abs(player.vx) > 18 && player.moveIntentX !== 0 && Math.sign(player.vx) !== Math.sign(player.moveIntentX)) {
+    return playerPoseImages.stand;
+  }
   return playerPoseImages.idle;
 }
 
