@@ -134,6 +134,8 @@ const PLAYER_POSE_OFFSETS = {
   fall: { x: -1, y: 0 },
   dash: { x: -3, y: 0 },
 };
+const PLAYER_SPRITE_DRAW_W = 14;
+const PLAYER_SPRITE_DRAW_H = 19;
 
 const roomDefs = [
   {
@@ -1503,16 +1505,15 @@ function drawPlayer() {
   if (player.respawnFlash > 0) {
     ctx.globalAlpha = 0.45 + player.respawnFlash;
   }
-  ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
+  ctx.translate(Math.round(player.x + player.w / 2), Math.round(player.y + player.h / 2));
   ctx.scale(player.facing, 1);
   const poseInfo = currentPlayerPoseImage();
   const pose = poseInfo?.image;
   const poseOffset = poseInfo?.offset || PLAYER_POSE_OFFSETS.idle;
   if (pose && pose.complete && pose.naturalWidth) {
-    const scale = 0.17;
-    const drawW = pose.naturalWidth * scale;
-    const drawH = pose.naturalHeight * scale;
-    ctx.drawImage(pose, -drawW / 2 + poseOffset.x, player.h / 2 - drawH + poseOffset.y, drawW, drawH);
+    const drawX = Math.round(-PLAYER_SPRITE_DRAW_W / 2 + poseOffset.x);
+    const drawY = Math.round(player.h / 2 - PLAYER_SPRITE_DRAW_H + poseOffset.y);
+    ctx.drawImage(pose, drawX, drawY, PLAYER_SPRITE_DRAW_W, PLAYER_SPRITE_DRAW_H);
   } else {
     const palette = {
       h: player.dashTimer > 0 ? "#fff3aa" : "#ff4f93",
