@@ -13,55 +13,48 @@
 </head>
 <body>
   <main class="page-shell">
-    <section class="hud-panel">
-      <p class="eyebrow">Precision Platformer Prototype</p>
-      <h1>Needle Peak</h1>
-      <p class="deck">
-        A deliberately cruel mountain run with dash refills, crumble chains, moving platforms,
-        wall jumps, checkpoints, berries, and a long room route.
-      </p>
-      <div class="stats-grid">
+    <section class="game-panel">
+      <div class="top-banner">
         <div>
+          <p class="eyebrow">Needle Peak</p>
+          <h1>Summit Run</h1>
+        </div>
+        <p class="goal-copy">Move with WASD or arrows. Jump with Z, C, or Space. Dash with X or Shift. Reset with R. Pause with Escape.</p>
+      </div>
+
+      <div class="hud-strip" aria-label="Game HUD">
+        <div class="hud-item">
           <span class="label">Room</span>
           <strong id="roomName">Ridge 1</strong>
         </div>
-        <div>
+        <div class="hud-item">
           <span class="label">Progress</span>
           <strong id="progressStat">1 / 12</strong>
         </div>
-        <div>
+        <div class="hud-item">
           <span class="label">Deaths</span>
           <strong id="deathCount">0</strong>
         </div>
-        <div>
+        <div class="hud-item">
           <span class="label">Berries</span>
           <strong id="berryCount">0 / 0</strong>
         </div>
-        <div>
+        <div class="hud-item">
           <span class="label">Time</span>
           <strong id="timer">00:00.000</strong>
         </div>
-        <div>
-          <span class="label">Best Time</span>
+        <div class="hud-item">
+          <span class="label">Best</span>
           <strong id="bestTime">--:--.---</strong>
         </div>
-        <div>
+        <div class="hud-item">
           <span class="label">Best Deaths</span>
           <strong id="bestDeaths">--</strong>
         </div>
       </div>
-      <div class="control-list">
-        <p><span>Move</span> WASD or Arrow Keys</p>
-        <p><span>Jump</span> Z, C, Space</p>
-        <p><span>Dash</span> X, Shift</p>
-        <p><span>Restart Room</span> R</p>
-        <p><span>Pause</span> Escape</p>
-      </div>
-      <p class="goal-copy">Reach the summit gate. Crystals restore your dash. Springs launch harder than mercy.</p>
-    </section>
 
-    <section class="game-panel">
       <canvas id="game" width="384" height="224" aria-label="Needle Peak game canvas"></canvas>
+
       <div id="overlay" class="overlay">
         <div class="overlay-card">
           <p class="overlay-kicker">Needle Peak</p>
@@ -73,6 +66,7 @@
           <button id="startButton" type="button">Begin Run</button>
         </div>
       </div>
+
       <div class="touch-controls" aria-label="Touch controls">
         <div class="touch-move">
           <button class="touch-btn touch-small" data-input="left" type="button" aria-label="Move left">◀</button>
@@ -83,6 +77,8 @@
           <button class="touch-btn touch-dash" data-input="dash" type="button" aria-label="Dash">Dash</button>
         </div>
       </div>
+
+      <p class="hud-note">Crystals refill dash. Gold markers save checkpoints. The final summit rooms are substantially harder than the opening ridge.</p>
     </section>
   </main>
 

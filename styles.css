@@ -7,7 +7,6 @@
   --text: #f5f7fb;
   --muted: #c0cfdf;
   --accent: #ffd166;
-  --danger: #ff6b6b;
   --mint: #81f4e1;
 }
 
@@ -27,23 +26,23 @@ body {
 
 .page-shell {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-  gap: 24px;
   padding: 24px;
 }
 
-.hud-panel,
 .game-panel {
+  min-height: calc(100vh - 48px);
   border: 1px solid var(--panel-border);
-  border-radius: 24px;
+  border-radius: 28px;
   background: var(--panel);
   backdrop-filter: blur(14px);
   box-shadow: 0 22px 64px rgba(0, 0, 0, 0.28);
-}
-
-.hud-panel {
-  padding: 28px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  overflow: hidden;
 }
 
 .eyebrow,
@@ -63,65 +62,50 @@ h2 {
 }
 
 h1 {
-  margin-top: 10px;
-  font-size: clamp(2.8rem, 5vw, 4.8rem);
+  margin-top: 8px;
+  font-size: clamp(1.9rem, 4vw, 3.4rem);
 }
 
-.deck,
 .goal-copy,
-#overlayBody {
+#overlayBody,
+.hud-note {
   color: var(--muted);
   line-height: 1.55;
 }
 
-.stats-grid {
+.top-banner {
+  width: min(100%, 1320px);
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.top-banner .goal-copy {
+  max-width: 540px;
+  margin: 0;
+  text-align: right;
+  font-size: 0.98rem;
+}
+
+.hud-strip {
+  width: min(100%, 1320px);
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin: 28px 0;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.stats-grid div {
-  padding: 14px;
-  border-radius: 18px;
+.hud-item {
+  padding: 12px 14px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.stats-grid strong {
+.hud-item strong {
   display: block;
   margin-top: 6px;
-  font-size: 1.1rem;
-}
-
-.control-list {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 28px;
-}
-
-.control-list p {
-  margin: 0;
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  color: var(--muted);
-}
-
-.control-list span {
-  color: var(--text);
-  font-weight: 700;
-}
-
-.game-panel {
-  position: relative;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  overflow: hidden;
-}
-
-.touch-controls {
-  display: none;
+  font-size: 1rem;
 }
 
 canvas {
@@ -134,7 +118,7 @@ canvas {
 
 .overlay {
   position: absolute;
-  inset: 18px;
+  inset: 110px 20px 64px 20px;
   display: grid;
   place-items: center;
   background: rgba(5, 10, 18, 0.56);
@@ -170,9 +154,48 @@ button:hover {
   filter: brightness(1.04);
 }
 
+.touch-controls {
+  display: none;
+}
+
+.hud-note {
+  width: min(100%, 1320px);
+  margin: 0;
+  text-align: center;
+}
+
+@media (max-width: 1100px) {
+  .hud-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 960px) {
   .page-shell {
-    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .game-panel {
+    min-height: calc(100vh - 28px);
+    padding: 16px;
+  }
+
+  .top-banner {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .top-banner .goal-copy {
+    text-align: left;
+    font-size: 0.92rem;
+  }
+
+  .hud-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .overlay {
+    inset: 140px 16px 124px 16px;
   }
 }
 
