@@ -124,7 +124,9 @@ const playerPoseImages = Object.fromEntries(
   })
 );
 
-const PLAYER_WALK_SEQUENCE = ["stand"];
+// Walk animation is intentionally disabled for now because the external pose
+// frames were still reading as unstable at gameplay scale.
+// const PLAYER_WALK_SEQUENCE = ["walk1", "walk2"];
 const PLAYER_POSE_OFFSETS = {
   idle: { x: 0, y: 0 },
   stand: { x: 0, y: 0 },
@@ -1489,7 +1491,8 @@ function currentPlayerPoseImage() {
   else if (animationState === "fall") key = "fall";
   else if (animationState === "jump") key = "jump";
   else if (animationState === "brake") key = "brake";
-  else if (animationState === "walk") key = PLAYER_WALK_SEQUENCE[player.walkFrame];
+  // else if (animationState === "walk") key = PLAYER_WALK_SEQUENCE[player.walkFrame];
+  else if (animationState === "walk") key = "stand";
   return {
     key,
     image: playerPoseImages[key],
