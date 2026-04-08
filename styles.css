@@ -2,7 +2,7 @@
   --bg-top: #09131f;
   --bg-mid: #17304d;
   --bg-bottom: #50738b;
-  --panel: rgba(7, 14, 25, 0.78);
+  --panel: rgba(7, 14, 25, 0.8);
   --panel-border: rgba(193, 226, 255, 0.18);
   --text: #f5f7fb;
   --muted: #c0cfdf;
@@ -26,90 +26,27 @@ body {
 
 .page-shell {
   min-height: 100vh;
-  padding: 24px;
+  padding: 18px;
 }
 
 .game-panel {
-  min-height: calc(100vh - 48px);
+  min-height: calc(100vh - 36px);
   border: 1px solid var(--panel-border);
   border-radius: 28px;
   background: var(--panel);
   backdrop-filter: blur(14px);
   box-shadow: 0 22px 64px rgba(0, 0, 0, 0.28);
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  padding: 20px;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding: 18px;
   overflow: hidden;
 }
 
-.eyebrow,
-.overlay-kicker,
-.label {
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 0.72rem;
-  color: var(--accent);
-}
-
-h1,
-h2 {
-  margin: 0;
-  font-family: "Syne", sans-serif;
-  line-height: 0.92;
-}
-
-h1 {
-  margin-top: 8px;
-  font-size: clamp(1.9rem, 4vw, 3.4rem);
-}
-
-.goal-copy,
-#overlayBody,
-.hud-note {
-  color: var(--muted);
-  line-height: 1.55;
-}
-
-.top-banner {
-  width: min(100%, 1320px);
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.top-banner .goal-copy {
-  max-width: 540px;
-  margin: 0;
-  text-align: right;
-  font-size: 0.98rem;
-}
-
-.hud-strip {
-  width: min(100%, 1320px);
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.hud-item {
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.hud-item strong {
-  display: block;
-  margin-top: 6px;
-  font-size: 1rem;
-}
-
 canvas {
-  width: min(100%, 1200px);
+  width: min(100%, 1440px);
+  max-height: calc(100vh - 72px);
   aspect-ratio: 12 / 7;
   image-rendering: pixelated;
   border-radius: 18px;
@@ -118,10 +55,10 @@ canvas {
 
 .overlay {
   position: absolute;
-  inset: 110px 20px 64px 20px;
+  inset: 18px;
   display: grid;
   place-items: center;
-  background: rgba(5, 10, 18, 0.56);
+  background: rgba(5, 10, 18, 0.52);
   transition: opacity 160ms ease;
 }
 
@@ -130,12 +67,31 @@ canvas {
   pointer-events: none;
 }
 
+.overlay-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  color: var(--accent);
+}
+
 .overlay-card {
   max-width: 520px;
   padding: 28px;
   border-radius: 22px;
   background: rgba(9, 16, 26, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+h2 {
+  margin: 0;
+  font-family: "Syne", sans-serif;
+  line-height: 0.92;
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+#overlayBody {
+  color: var(--muted);
+  line-height: 1.55;
 }
 
 button {
@@ -158,50 +114,20 @@ button:hover {
   display: none;
 }
 
-.hud-note {
-  width: min(100%, 1320px);
-  margin: 0;
-  text-align: center;
-}
-
-@media (max-width: 1100px) {
-  .hud-strip {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 960px) {
   .page-shell {
-    padding: 14px;
+    padding: 10px;
   }
 
   .game-panel {
-    min-height: calc(100vh - 28px);
-    padding: 16px;
-  }
-
-  .top-banner {
-    flex-direction: column;
-    align-items: start;
-  }
-
-  .top-banner .goal-copy {
-    text-align: left;
-    font-size: 0.92rem;
-  }
-
-  .hud-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .overlay {
-    inset: 140px 16px 124px 16px;
+    min-height: calc(100vh - 20px);
+    padding: 10px;
   }
 }
 
 @media (pointer: coarse), (max-width: 960px) {
   .game-panel {
-    padding-bottom: 128px;
+    padding-bottom: 122px;
   }
 
   .touch-controls {

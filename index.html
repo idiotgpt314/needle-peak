@@ -14,45 +14,6 @@
 <body>
   <main class="page-shell">
     <section class="game-panel">
-      <div class="top-banner">
-        <div>
-          <p class="eyebrow">Needle Peak</p>
-          <h1>Summit Run</h1>
-        </div>
-        <p class="goal-copy">Move with WASD or arrows. Jump with Z, C, or Space. Dash with X or Shift. Reset with R. Pause with Escape.</p>
-      </div>
-
-      <div class="hud-strip" aria-label="Game HUD">
-        <div class="hud-item">
-          <span class="label">Room</span>
-          <strong id="roomName">Ridge 1</strong>
-        </div>
-        <div class="hud-item">
-          <span class="label">Progress</span>
-          <strong id="progressStat">1 / 12</strong>
-        </div>
-        <div class="hud-item">
-          <span class="label">Deaths</span>
-          <strong id="deathCount">0</strong>
-        </div>
-        <div class="hud-item">
-          <span class="label">Berries</span>
-          <strong id="berryCount">0 / 0</strong>
-        </div>
-        <div class="hud-item">
-          <span class="label">Time</span>
-          <strong id="timer">00:00.000</strong>
-        </div>
-        <div class="hud-item">
-          <span class="label">Best</span>
-          <strong id="bestTime">--:--.---</strong>
-        </div>
-        <div class="hud-item">
-          <span class="label">Best Deaths</span>
-          <strong id="bestDeaths">--</strong>
-        </div>
-      </div>
-
       <canvas id="game" width="384" height="224" aria-label="Needle Peak game canvas"></canvas>
 
       <div id="overlay" class="overlay">
@@ -60,8 +21,7 @@
           <p class="overlay-kicker">Needle Peak</p>
           <h2 id="overlayTitle">Start Climb</h2>
           <p id="overlayBody">
-            Built for hard resets and tighter movement. Expect coyote time, buffered jumps, one dash,
-            wall jumps, and rooms that assume you use all of them.
+            Hard rooms, fast resets, one dash, brutal timing. Everything important is now on the in-game HUD.
           </p>
           <button id="startButton" type="button">Begin Run</button>
         </div>
@@ -77,8 +37,6 @@
           <button class="touch-btn touch-dash" data-input="dash" type="button" aria-label="Dash">Dash</button>
         </div>
       </div>
-
-      <p class="hud-note">Crystals refill dash. Gold markers save checkpoints. The final summit rooms are substantially harder than the opening ridge.</p>
     </section>
   </main>
 

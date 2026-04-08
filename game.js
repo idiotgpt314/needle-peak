@@ -6,14 +6,6 @@ const overlayTitle = document.getElementById("overlayTitle");
 const overlayBody = document.getElementById("overlayBody");
 const startButton = document.getElementById("startButton");
 
-const roomNameEl = document.getElementById("roomName");
-const progressStatEl = document.getElementById("progressStat");
-const deathCountEl = document.getElementById("deathCount");
-const berryCountEl = document.getElementById("berryCount");
-const timerEl = document.getElementById("timer");
-const bestTimeEl = document.getElementById("bestTime");
-const bestDeathsEl = document.getElementById("bestDeaths");
-
 const TILE = 16;
 const ROOM_W = 24;
 const ROOM_H = 14;
@@ -77,6 +69,14 @@ function formatTime(seconds) {
   const remaining = seconds - minutes * 60;
   return `${String(minutes).padStart(2, "0")}:${remaining.toFixed(3).padStart(6, "0")}`;
 }
+
+const STARFIELD = Array.from({ length: 28 }, (_, index) => ({
+  x: (index * 31) % WORLD_W,
+  y: (index * 19) % 92,
+  speed: 2 + (index % 5),
+  size: 1 + (index % 3),
+  alpha: 0.05 + (index % 4) * 0.018,
+}));
 
 const roomDefs = [
   {
@@ -479,11 +479,13 @@ function parseRoom(def) {
     });
   });
 
+  room.berryTotal = room.berries.length;
   return room;
 }
 
 const rooms = new Map(roomDefs.map((def) => [def.id, parseRoom(def)]));
 const roomOrder = roomDefs.map((def) => def.id);
+const TOTAL_BERRIES = roomDefs.reduce((sum, def) => sum + [...def.map.join("")].filter((char) => char === "s").length, 0);
 const STORAGE_KEY = "needle-peak-best-v1";
 
 const savedBest = (() => {
@@ -504,6 +506,10 @@ const state = {
   finished: false,
   bestTime: typeof savedBest.bestTime === "number" ? savedBest.bestTime : null,
   bestDeaths: typeof savedBest.bestDeaths === "number" ? savedBest.bestDeaths : null,
+  visualTime: 0,
+  transitionCooldown: 0,
+  roomIntroTimer: 1.8,
+  transitionFlash: 0,
 };
 
 const player = {
@@ -525,6 +531,7 @@ const player = {
   wallGrace: 0,
   jumpCut: false,
   respawnFlash: 0,
+  trail: [],
 };
 
 function currentRoom() {
@@ -533,6 +540,14 @@ function currentRoom() {
 
 function roomProgressLabel() {
   return `${roomOrder.indexOf(state.currentRoomId) + 1} / ${roomOrder.length}`;
+}
+
+function bestTimeLabel() {
+  return state.bestTime == null ? "--:--.---" : formatTime(state.bestTime);
+}
+
+function bestDeathsLabel() {
+  return state.bestDeaths == null ? "--" : String(state.bestDeaths);
 }
 
 function saveBestStats() {
@@ -611,6 +626,9 @@ function startRun() {
   state.timer = 0;
   state.finished = false;
   state.berriesCollected.clear();
+  state.roomIntroTimer = 2.2;
+  state.transitionCooldown = 0;
+  state.transitionFlash = 0;
   rooms.forEach((room) => resetRoomDynamics(room));
   respawnAtCheckpoint();
   hideOverlay();
@@ -645,31 +663,32 @@ function respawnAtCheckpoint() {
   player.jumpBuffer = 0;
   player.wallGrace = 0;
   player.respawnFlash = 0.4;
+  player.trail = [];
+  state.transitionCooldown = 0.15;
+  state.transitionFlash = 0.28;
+  state.roomIntroTimer = 1.25;
 }
 
-function getCollisionSolids(room) {
-  const solids = [...room.solids];
-  room.crumbles.forEach((block) => {
-    if (block.state !== "gone") {
-      solids.push(block);
-    }
-  });
-  room.movers.forEach((mover) => {
-    solids.push({
+function collidesAt(room, x, y) {
+  const rect = { x, y, w: player.w, h: player.h };
+  for (const solid of room.solids) {
+    if (overlap(rect, solid)) return solid;
+  }
+  for (const block of room.crumbles) {
+    if (block.state !== "gone" && overlap(rect, block)) return block;
+  }
+  for (const mover of room.movers) {
+    const moverRect = {
       x: mover.currentX,
       y: mover.currentY,
       w: mover.w,
       h: mover.h,
       moving: true,
       mover,
-    });
-  });
-  return solids;
-}
-
-function collidesAt(room, x, y) {
-  const rect = { x, y, w: player.w, h: player.h };
-  return getCollisionSolids(room).find((solid) => overlap(rect, solid));
+    };
+    if (overlap(rect, moverRect)) return moverRect;
+  }
+  return null;
 }
 
 function moveX(room, amount) {
@@ -734,7 +753,24 @@ function setCheckpoint(checkpoint) {
   };
 }
 
+function applyTransitionSpawn(direction) {
+  if (direction === "right") {
+    player.x = 3;
+    player.y = clamp(player.y, 12, WORLD_H - player.h - 18);
+  } else if (direction === "left") {
+    player.x = WORLD_W - player.w - 3;
+    player.y = clamp(player.y, 12, WORLD_H - player.h - 18);
+  } else if (direction === "up") {
+    player.y = WORLD_H - player.h - 3;
+    player.x = clamp(player.x, 12, WORLD_W - player.w - 12);
+  } else if (direction === "down") {
+    player.y = 3;
+    player.x = clamp(player.x, 12, WORLD_W - player.w - 12);
+  }
+}
+
 function transition(direction) {
+  if (state.transitionCooldown > 0) return;
   const room = currentRoom();
   const nextId = room.exits[direction];
   if (!nextId) {
@@ -745,34 +781,12 @@ function transition(direction) {
   state.currentRoomId = nextId;
   const nextRoom = currentRoom();
   resetRoomDynamics(nextRoom);
-
-  if (direction === "right") {
-    player.x = 2;
-  } else if (direction === "left") {
-    player.x = WORLD_W - player.w - 2;
-  } else if (direction === "up") {
-    player.y = WORLD_H - player.h - 2;
-  } else if (direction === "down") {
-    player.y = 2;
-  }
-}
-
-function refreshHud() {
-  roomNameEl.textContent = currentRoom().name;
-  progressStatEl.textContent = roomProgressLabel();
-  deathCountEl.textContent = String(state.deaths);
-  berryCountEl.textContent = `${state.berriesCollected.size} / ${countTotalBerries()}`;
-  timerEl.textContent = formatTime(state.timer);
-  bestTimeEl.textContent = state.bestTime == null ? "--:--.---" : formatTime(state.bestTime);
-  bestDeathsEl.textContent = state.bestDeaths == null ? "--" : String(state.bestDeaths);
-}
-
-function countTotalBerries() {
-  let count = 0;
-  rooms.forEach((room) => {
-    count += room.berries.length;
-  });
-  return count;
+  applyTransitionSpawn(direction);
+  player.dashCharges = Math.max(1, player.dashCharges);
+  player.trail = [];
+  state.transitionCooldown = 0.18;
+  state.transitionFlash = 0.16;
+  state.roomIntroTimer = 1.2;
 }
 
 function updateRoomEntities(room, dt) {
@@ -801,7 +815,7 @@ function updateRoomEntities(room, dt) {
   room.movers.forEach((mover) => {
     mover.prevX = mover.currentX;
     mover.prevY = mover.currentY;
-    const phase = performance.now() / 1000 * mover.speed + mover.phase;
+    const phase = state.visualTime * mover.speed + mover.phase;
     mover.currentX = mover.startX + Math.sin(phase) * mover.dx;
     mover.currentY = mover.startY + Math.cos(phase) * mover.dy;
   });
@@ -816,6 +830,9 @@ function updatePlayer(dt) {
   player.coyote = Math.max(0, player.coyote - dt);
   player.wallGrace = Math.max(0, player.wallGrace - dt);
   player.dashCooldown = Math.max(0, player.dashCooldown - dt);
+  state.transitionCooldown = Math.max(0, state.transitionCooldown - dt);
+  state.roomIntroTimer = Math.max(0, state.roomIntroTimer - dt);
+  state.transitionFlash = Math.max(0, state.transitionFlash - dt * 1.5);
 
   if (btnPressed("restart")) {
     killPlayer("Manual reset.");
@@ -875,6 +892,16 @@ function updatePlayer(dt) {
     player.dashBuffer = 0;
   }
 
+  player.trail.unshift({
+    x: player.x,
+    y: player.y,
+    t: player.dashTimer > 0 ? 0.2 : 0.12,
+  });
+  player.trail = player.trail
+    .map((afterimage) => ({ ...afterimage, t: afterimage.t - dt }))
+    .filter((afterimage) => afterimage.t > 0)
+    .slice(0, 6);
+
   if (player.dashTimer > 0) {
     player.dashTimer -= dt;
     player.vx = approach(player.vx, 0, 180 * dt);
@@ -890,12 +917,12 @@ function updatePlayer(dt) {
     player.vy = clamp(player.vy + gravity * dt, -220, wallSliding ? 54 : 188);
   }
 
-  const standingOnMover = room.movers.find((mover) =>
+  const standingOnMover = room.movers.find((mover) => (
     player.vy >= 0 &&
     player.x + player.w > mover.currentX &&
     player.x < mover.currentX + mover.w &&
     Math.abs(player.y + player.h - mover.currentY) <= 2
-  );
+  ));
   if (standingOnMover) {
     player.x += standingOnMover.currentX - standingOnMover.prevX;
     player.y += standingOnMover.currentY - standingOnMover.prevY;
@@ -928,6 +955,7 @@ function updatePlayer(dt) {
   room.berries.forEach((berry) => {
     if (!state.berriesCollected.has(berry.id) && overlap(player, berry)) {
       state.berriesCollected.add(berry.id);
+      state.roomIntroTimer = Math.max(state.roomIntroTimer, 0.35);
     }
   });
 
@@ -947,17 +975,20 @@ function updatePlayer(dt) {
     saveBestStats();
     showOverlay(
       "Summit Cleared",
-      `Finished in ${formatTime(state.timer)} with ${state.deaths} deaths and ${state.berriesCollected.size}/${countTotalBerries()} berries.`,
+      `Finished in ${formatTime(state.timer)} with ${state.deaths} deaths and ${state.berriesCollected.size}/${TOTAL_BERRIES} berries.`,
       "Run Again"
     );
     return;
   }
 
-  if (player.y > WORLD_H + 12) killPlayer("The mountain dropped you.");
   if (player.x < -player.w) transition("left");
   if (player.x > WORLD_W) transition("right");
   if (player.y < -player.h) transition("up");
-  if (player.y > WORLD_H) transition("down");
+  if (player.y > WORLD_H && currentRoom().exits.down) {
+    transition("down");
+  } else if (player.y > WORLD_H + 18) {
+    killPlayer("The mountain dropped you.");
+  }
 }
 
 function drawRoom(room) {
@@ -967,36 +998,81 @@ function drawRoom(room) {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (let i = 0; i < 22; i += 1) {
-    ctx.fillStyle = `rgba(255,255,255,${0.03 + (i % 3) * 0.015})`;
-    const x = (i * 31 + performance.now() * 0.01 * ((i % 4) + 1)) % canvas.width;
-    const y = (i * 19) % canvas.height;
+  const skyGlow = ctx.createRadialGradient(WORLD_W * 0.72, 38, 6, WORLD_W * 0.72, 38, 110);
+  skyGlow.addColorStop(0, "rgba(255, 242, 186, 0.34)");
+  skyGlow.addColorStop(1, "rgba(255, 242, 186, 0)");
+  ctx.fillStyle = skyGlow;
+  ctx.fillRect(0, 0, WORLD_W, 140);
+
+  STARFIELD.forEach((star) => {
+    ctx.fillStyle = `rgba(255,255,255,${star.alpha})`;
+    const x = (star.x + state.visualTime * star.speed) % WORLD_W;
+    const y = star.y + Math.sin(state.visualTime * 0.8 + star.x) * 1.5;
     ctx.beginPath();
-    ctx.arc(x, y, (i % 4) + 1, 0, Math.PI * 2);
+    ctx.arc(x, y, star.size, 0, Math.PI * 2);
     ctx.fill();
-  }
+  });
+
+  ctx.fillStyle = "rgba(10, 20, 34, 0.24)";
+  ctx.beginPath();
+  ctx.moveTo(0, 124);
+  ctx.lineTo(48, 88);
+  ctx.lineTo(92, 116);
+  ctx.lineTo(140, 68);
+  ctx.lineTo(196, 110);
+  ctx.lineTo(252, 72);
+  ctx.lineTo(316, 118);
+  ctx.lineTo(384, 94);
+  ctx.lineTo(384, 224);
+  ctx.lineTo(0, 224);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(5, 11, 21, 0.28)";
+  ctx.beginPath();
+  ctx.moveTo(0, 150);
+  ctx.lineTo(58, 104);
+  ctx.lineTo(100, 138);
+  ctx.lineTo(150, 92);
+  ctx.lineTo(220, 142);
+  ctx.lineTo(264, 110);
+  ctx.lineTo(332, 154);
+  ctx.lineTo(384, 122);
+  ctx.lineTo(384, 224);
+  ctx.lineTo(0, 224);
+  ctx.closePath();
+  ctx.fill();
 
   room.solids.forEach((solid) => {
-    ctx.fillStyle = "#24374f";
+    const tileGrad = ctx.createLinearGradient(solid.x, solid.y, solid.x, solid.y + solid.h);
+    tileGrad.addColorStop(0, "#35506f");
+    tileGrad.addColorStop(1, "#172334");
+    ctx.fillStyle = tileGrad;
     ctx.fillRect(solid.x, solid.y, solid.w, solid.h);
-    ctx.fillStyle = "#4a6c93";
+    ctx.fillStyle = "#73a3db";
     ctx.fillRect(solid.x + 1, solid.y + 1, solid.w - 2, 4);
+    ctx.fillStyle = "rgba(7, 12, 20, 0.35)";
+    ctx.fillRect(solid.x + 1, solid.y + solid.h - 3, solid.w - 2, 2);
   });
 
   room.crumbles.forEach((block) => {
     if (block.state === "gone") return;
     const shake = block.state === "shaking" ? (Math.random() > 0.5 ? 1 : -1) : 0;
-    ctx.fillStyle = "#8b6f57";
+    ctx.fillStyle = "#7d624d";
     ctx.fillRect(block.x + shake, block.y, block.w, block.h);
     ctx.fillStyle = "#d0a37b";
     ctx.fillRect(block.x + 2 + shake, block.y + 2, block.w - 4, block.h - 7);
+    ctx.fillStyle = "rgba(255, 226, 180, 0.22)";
+    ctx.fillRect(block.x + 2 + shake, block.y + 3, block.w - 4, 2);
   });
 
   room.movers.forEach((mover) => {
-    ctx.fillStyle = "#2e455c";
+    ctx.fillStyle = "#213243";
     ctx.fillRect(mover.currentX, mover.currentY, mover.w, mover.h);
     ctx.fillStyle = "#81f4e1";
     ctx.fillRect(mover.currentX + 2, mover.currentY + 2, mover.w - 4, 4);
+    ctx.fillStyle = "rgba(129, 244, 225, 0.18)";
+    ctx.fillRect(mover.currentX + 1, mover.currentY + 1, mover.w - 2, mover.h - 2);
   });
 
   room.hazards.forEach((hazard) => {
@@ -1028,9 +1104,15 @@ function drawRoom(room) {
     ctx.fillRect(spring.x, spring.y, spring.w, spring.h);
     ctx.fillStyle = "#d8ffee";
     ctx.fillRect(spring.x + 2, spring.y + 2, spring.w - 4, 3);
+    ctx.fillStyle = "rgba(77, 225, 139, 0.18)";
+    ctx.fillRect(spring.x, spring.y - 6, spring.w, 6);
   });
 
   room.crystals.forEach((crystal) => {
+    ctx.fillStyle = crystal.active ? "rgba(120,246,255,0.16)" : "rgba(120,246,255,0.06)";
+    ctx.beginPath();
+    ctx.arc(crystal.x + crystal.w / 2, crystal.y + crystal.h / 2, 9, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = crystal.active ? "#78f6ff" : "rgba(120,246,255,0.25)";
     ctx.beginPath();
     ctx.moveTo(crystal.x + crystal.w / 2, crystal.y);
@@ -1043,6 +1125,12 @@ function drawRoom(room) {
 
   room.berries.forEach((berry) => {
     if (state.berriesCollected.has(berry.id)) return;
+    ctx.strokeStyle = "#8affad";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(berry.x + 4, berry.y - 2);
+    ctx.lineTo(berry.x + 4, berry.y + 2);
+    ctx.stroke();
     ctx.fillStyle = "#ff4fa3";
     ctx.beginPath();
     ctx.arc(berry.x + 4, berry.y + 4, 4, 0, Math.PI * 2);
@@ -1057,6 +1145,8 @@ function drawRoom(room) {
     if (state.checkpoint.roomId === state.currentRoomId && Math.abs(state.checkpoint.x - checkpoint.x) < 3) {
       ctx.fillStyle = "#ffd166";
       ctx.fillRect(checkpoint.x + 4, checkpoint.y - 6, 4, 8);
+      ctx.fillStyle = "rgba(255, 209, 102, 0.15)";
+      ctx.fillRect(checkpoint.x + 5, checkpoint.y - 22, 2, 16);
     }
   });
 
@@ -1069,6 +1159,14 @@ function drawRoom(room) {
 }
 
 function drawPlayer() {
+  player.trail.forEach((afterimage, index) => {
+    ctx.save();
+    ctx.globalAlpha = (afterimage.t / 0.2) * 0.18 * (1 - index / 6);
+    ctx.fillStyle = player.dashTimer > 0 ? "#ffe27a" : "#ff8ab6";
+    ctx.fillRect(afterimage.x, afterimage.y, player.w, player.h);
+    ctx.restore();
+  });
+
   ctx.save();
   if (player.respawnFlash > 0) {
     ctx.globalAlpha = 0.45 + player.respawnFlash;
@@ -1081,20 +1179,62 @@ function drawPlayer() {
   ctx.fillRect(-4, -6, 8, 6);
   ctx.fillStyle = "#111827";
   ctx.fillRect(0, -2, 2, 2);
+  ctx.fillStyle = player.dashTimer > 0 ? "#fff8cb" : "#ff5e98";
+  ctx.fillRect(-6, -8, 3, 10);
   ctx.restore();
 }
 
 function drawHudOverlay() {
-  ctx.fillStyle = "rgba(4, 8, 16, 0.25)";
-  ctx.fillRect(6, 6, 96, 26);
+  ctx.fillStyle = "rgba(4, 8, 16, 0.42)";
+  ctx.fillRect(8, 8, 122, 30);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 8px Space Grotesk";
+  ctx.fillText(currentRoom().name.toUpperCase(), 14, 20);
+  ctx.font = "10px Space Grotesk";
+  ctx.fillText(`Deaths ${state.deaths}`, 14, 31);
+
+  ctx.fillStyle = "rgba(4, 8, 16, 0.42)";
+  ctx.fillRect(136, 8, 120, 30);
+  ctx.fillStyle = "#ffd166";
+  ctx.font = "700 8px Space Grotesk";
+  ctx.fillText("PROGRESS", 142, 20);
   ctx.fillStyle = "#ffffff";
   ctx.font = "10px Space Grotesk";
-  ctx.fillText(currentRoom().name, 12, 17);
-  ctx.fillText(`Deaths ${state.deaths}`, 12, 28);
+  ctx.fillText(`${roomProgressLabel()}  Berries ${state.berriesCollected.size}/${TOTAL_BERRIES}`, 142, 31);
 
-  for (let i = 0; i < player.dashCharges; i += 1) {
-    ctx.fillStyle = "#78f6ff";
-    ctx.fillRect(canvas.width - 20 - i * 10, 10, 8, 8);
+  ctx.fillStyle = "rgba(4, 8, 16, 0.42)";
+  ctx.fillRect(262, 8, 114, 30);
+  ctx.fillStyle = "#78f6ff";
+  ctx.font = "700 8px Space Grotesk";
+  ctx.fillText("RUN", 268, 20);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "9px Space Grotesk";
+  ctx.fillText(formatTime(state.timer), 268, 28);
+  ctx.fillText(`Best ${bestTimeLabel()}`, 320, 20);
+  ctx.fillText(`BD ${bestDeathsLabel()}`, 320, 31);
+
+  for (let i = 0; i < Math.max(1, player.dashCharges); i += 1) {
+    ctx.fillStyle = i < player.dashCharges ? "#78f6ff" : "rgba(120,246,255,0.18)";
+    ctx.fillRect(canvas.width - 18 - i * 10, 14, 8, 8);
+  }
+
+  if (state.roomIntroTimer > 0) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, state.roomIntroTimer);
+    ctx.fillStyle = "rgba(4, 8, 16, 0.42)";
+    ctx.fillRect(110, 44, 164, 22);
+    ctx.fillStyle = "#ffd166";
+    ctx.font = "700 10px Syne";
+    ctx.fillText(currentRoom().name, 162 - ctx.measureText(currentRoom().name).width / 2, 58);
+    ctx.restore();
+  }
+
+  if (state.transitionFlash > 0) {
+    ctx.save();
+    ctx.globalAlpha = state.transitionFlash;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+    ctx.restore();
   }
 }
 
@@ -1103,16 +1243,19 @@ let lastTime = performance.now();
 function frame(now) {
   const dt = Math.min(1 / 30, (now - lastTime) / 1000);
   lastTime = now;
+  state.visualTime += dt;
 
   if (state.mode === "playing") {
     state.timer += dt;
     updatePlayer(dt);
+  } else {
+    state.roomIntroTimer = Math.max(0, state.roomIntroTimer - dt);
+    state.transitionFlash = Math.max(0, state.transitionFlash - dt * 1.5);
   }
 
   drawRoom(currentRoom());
   drawPlayer();
   drawHudOverlay();
-  refreshHud();
 
   pressed.clear();
   virtualPressed.clear();
@@ -1125,5 +1268,4 @@ showOverlay(
 );
 bindTouchControls();
 respawnAtCheckpoint();
-refreshHud();
 requestAnimationFrame(frame);
