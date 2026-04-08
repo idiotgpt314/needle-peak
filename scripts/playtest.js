@@ -31,18 +31,10 @@ async function teleport(page, roomId, x, y) {
 
 async function tryTransitionSweep(page, roomId, direction, expectedRoomId) {
   const attemptsByDirection = {
-    right: [
-      [395, 24], [395, 56], [395, 88], [395, 120], [395, 152], [395, 184],
-    ],
-    left: [
-      [-14, 24], [-14, 56], [-14, 88], [-14, 120], [-14, 152], [-14, 184],
-    ],
-    up: [
-      [24, -18], [72, -18], [120, -18], [168, -18], [216, -18], [312, -18],
-    ],
-    down: [
-      [24, 246], [72, 246], [120, 246], [168, 246], [216, 246], [312, 246],
-    ],
+    right: [[395, 24], [395, 56], [395, 88], [395, 120], [395, 152], [395, 184]],
+    left: [[-14, 24], [-14, 56], [-14, 88], [-14, 120], [-14, 152], [-14, 184]],
+    up: [[24, -18], [72, -18], [120, -18], [168, -18], [216, -18], [312, -18]],
+    down: [[24, 246], [72, 246], [120, 246], [168, 246], [216, 246], [312, 246]],
   };
 
   for (const [x, y] of attemptsByDirection[direction]) {
@@ -154,30 +146,19 @@ async function main() {
 
     if (exits.right) {
       const okTransition = await tryTransitionSweep(page, roomId, "right", exits.right);
-      if (!okTransition) {
-        findings.push(`Right transition from ${roomId} failed. Expected ${exits.right}.`);
-      }
+      if (!okTransition) findings.push(`Right transition from ${roomId} failed. Expected ${exits.right}.`);
     }
-
     if (exits.left) {
       const okTransition = await tryTransitionSweep(page, roomId, "left", exits.left);
-      if (!okTransition) {
-        findings.push(`Left transition from ${roomId} failed. Expected ${exits.left}.`);
-      }
+      if (!okTransition) findings.push(`Left transition from ${roomId} failed. Expected ${exits.left}.`);
     }
-
     if (exits.up) {
       const okTransition = await tryTransitionSweep(page, roomId, "up", exits.up);
-      if (!okTransition) {
-        findings.push(`Up transition from ${roomId} failed. Expected ${exits.up}.`);
-      }
+      if (!okTransition) findings.push(`Up transition from ${roomId} failed. Expected ${exits.up}.`);
     }
-
     if (exits.down) {
       const okTransition = await tryTransitionSweep(page, roomId, "down", exits.down);
-      if (!okTransition) {
-        findings.push(`Down transition from ${roomId} failed. Expected ${exits.down}.`);
-      }
+      if (!okTransition) findings.push(`Down transition from ${roomId} failed. Expected ${exits.down}.`);
     }
   }
 
@@ -257,18 +238,15 @@ async function main() {
     }
   }
 
-  if (consoleErrors.length) {
-    findings.push(...consoleErrors);
-  }
+  console.log(JSON.stringify({
+    url,
+    findings,
+    consoleErrors,
+    final: await snapshot(page),
+  }, null, 2));
 
-  console.log(JSON.stringify({ url, findings, consoleErrors, final: await snapshot(page) }, null, 2));
-  if (watch) {
-    logStep("Watch mode enabled. Leaving browser open for 20 seconds.");
-    await page.waitForTimeout(20000);
-  }
   await browser.close();
-
-  process.exit(findings.length ? 1 : 0);
+  process.exit(findings.length || consoleErrors.length ? 1 : 0);
 }
 
 main().catch((error) => {

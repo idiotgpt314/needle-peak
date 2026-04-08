@@ -4,6 +4,7 @@
   "description": "`Needle Peak` is a standalone browser prototype for a very difficult Celeste-style precision platformer.",
   "main": "game.js",
   "scripts": {
+    "playtest": "node scripts/playtest.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
