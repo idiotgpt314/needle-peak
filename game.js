@@ -13,6 +13,7 @@ const ROOM_W = 24;
 const ROOM_H = 14;
 const WORLD_W = ROOM_W * TILE;
 const WORLD_H = ROOM_H * TILE;
+const coarseLayoutQuery = window.matchMedia("(pointer: coarse), (max-width: 960px)");
 
 const keys = new Set();
 const pressed = new Set();
@@ -1162,14 +1163,9 @@ function updatePlayer(dt) {
     player.vy = clamp(player.vy + gravity * dt, -220, wallSliding ? 54 : 188);
   }
 
-  const groundedMovement = player.onGround && inputX !== 0 && Math.abs(player.vx) > 28;
-  if (groundedMovement) {
-    player.walkFrame = 0;
-    player.walkFrameTimer = 0;
-  } else {
-    player.walkFrame = 0;
-    player.walkFrameTimer = 0;
-  }
+  // Grounded walk animation is disabled for now; keep the state stable.
+  player.walkFrame = 0;
+  player.walkFrameTimer = 0;
 
   const standingOnMover = room.movers.find((mover) => (
     player.vy >= 0 &&
@@ -1631,13 +1627,25 @@ function updateCanvasPresentation() {
     Math.floor(panelRect.height - parseFloat(panelStyles.paddingTop) - parseFloat(panelStyles.paddingBottom))
   );
 
-  if (window.matchMedia("(pointer: coarse), (max-width: 960px)").matches) {
+  if (coarseLayoutQuery.matches) {
     availableHeight = Math.max(WORLD_H, availableHeight - 112);
   }
 
   const scale = Math.max(1, Math.floor(Math.min(availableWidth / WORLD_W, availableHeight / WORLD_H)));
-  canvas.style.width = `${WORLD_W * scale}px`;
-  canvas.style.height = `${WORLD_H * scale}px`;
+  const targetWidth = `${WORLD_W * scale}px`;
+  const targetHeight = `${WORLD_H * scale}px`;
+  if (canvas.style.width !== targetWidth) canvas.style.width = targetWidth;
+  if (canvas.style.height !== targetHeight) canvas.style.height = targetHeight;
+}
+
+let canvasPresentationQueued = false;
+function scheduleCanvasPresentationUpdate() {
+  if (canvasPresentationQueued) return;
+  canvasPresentationQueued = true;
+  requestAnimationFrame(() => {
+    canvasPresentationQueued = false;
+    updateCanvasPresentation();
+  });
 }
 
 let lastTime = performance.now();
@@ -1674,8 +1682,10 @@ bindTouchControls();
 respawnAtCheckpoint();
 updateCanvasPresentation();
 
-window.addEventListener("resize", updateCanvasPresentation);
-new ResizeObserver(updateCanvasPresentation).observe(gamePanel);
+window.addEventListener("resize", scheduleCanvasPresentationUpdate);
+if (typeof ResizeObserver === "function") {
+  new ResizeObserver(scheduleCanvasPresentationUpdate).observe(gamePanel);
+}
 
 window.__needlePeakDebug = {
   getSnapshot() {
@@ -1701,6 +1711,30 @@ window.__needlePeakDebug = {
       poseKey: pose.key,
       transitionCooldown: state.transitionCooldown,
       roomIntroTimer: state.roomIntroTimer,
+    };
+  },
+  teleport(roomId, x, y) {
+    if (!rooms.has(roomId)) return false;
+    state.currentRoomId = roomId;
+    resetRoomDynamics(currentRoom());
+    player.x = x;
+    player.y = y;
+    player.vx = 0;
+    player.vy = 0;
+    state.transitionCooldown = 0;
+    state.roomIntroTimer = 0;
+    player.trail = [];
+    return true;
+  },
+  roomIds() {
+    return [...roomOrder];
+  },
+  currentRoomMeta() {
+    const room = currentRoom();
+    return {
+      id: room.id,
+      exits: room.exits,
+      spawn: room.spawn,
     };
   },
 };

@@ -1,0 +1,19 @@
+{
+  "name": "needle-peak",
+  "version": "1.0.0",
+  "description": "Needle Peak is a standalone browser prototype for a difficult precision platformer.",
+  "main": "game.js",
+  "type": "commonjs",
+  "scripts": {
+    "playtest": "node scripts/playtest.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/idiotgpt314/needle-peak.git"
+  },
+  "license": "ISC",
+  "homepage": "https://github.com/idiotgpt314/needle-peak#readme",
+  "devDependencies": {
+    "playwright": "^1.59.1"
+  }
+}
