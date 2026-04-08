@@ -1,5 +1,6 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+ctx.imageSmoothingEnabled = false;
 
 const overlay = document.getElementById("overlay");
 const overlayTitle = document.getElementById("overlayTitle");
@@ -24,13 +25,17 @@ const inputMap = {
   right: ["ArrowRight", "d", "D"],
   up: ["ArrowUp", "w", "W"],
   down: ["ArrowDown", "s", "S"],
-  jump: ["z", "Z", "c", "C", "k", "K", " "],
+  jump: ["ArrowUp", "w", "W", "z", "Z", "c", "C", "k", "K", " "],
   dash: ["x", "X", "j", "J", "Shift"],
   restart: ["r", "R", "Backspace"],
   pause: ["Escape", "Enter"],
 };
 
 const ACTIONS = ["left", "right", "up", "down", "jump", "dash", "restart", "pause"];
+const INPUT_KEYS = new Set(Object.values(inputMap).flat());
+const actionKeySets = Object.fromEntries(
+  Object.entries(inputMap).map(([action, keysForAction]) => [action, new Set(keysForAction)])
+);
 const GAMEPAD_BUTTONS = {
   jump: [0],
   dash: [1, 5],
@@ -47,7 +52,7 @@ document.addEventListener("keydown", (event) => {
     pressed.add(event.key);
   }
   keys.add(event.key);
-  if (Object.values(inputMap).some((list) => list.includes(event.key))) {
+  if (INPUT_KEYS.has(event.key)) {
     event.preventDefault();
   }
 });
@@ -57,11 +62,19 @@ document.addEventListener("keyup", (event) => {
 });
 
 function btn(name) {
-  return virtualHeld.has(name) || gamepadHeld.has(name) || inputMap[name].some((key) => keys.has(key));
+  if (virtualHeld.has(name) || gamepadHeld.has(name)) return true;
+  for (const key of actionKeySets[name]) {
+    if (keys.has(key)) return true;
+  }
+  return false;
 }
 
 function btnPressed(name) {
-  return virtualPressed.has(name) || gamepadPressed.has(name) || inputMap[name].some((key) => pressed.has(key));
+  if (virtualPressed.has(name) || gamepadPressed.has(name)) return true;
+  for (const key of actionKeySets[name]) {
+    if (pressed.has(key)) return true;
+  }
+  return false;
 }
 
 function clamp(value, min, max) {
@@ -468,7 +481,7 @@ const roomDefs = [
   },
 ];
 
-function parseRoom(def) {
+function parseRoom(def, index) {
   const room = {
     ...def,
     solids: [],
@@ -516,10 +529,11 @@ function parseRoom(def) {
   });
 
   room.berryTotal = room.berries.length;
+  room.progressLabel = `${index + 1} / ${roomDefs.length}`;
   return room;
 }
 
-const rooms = new Map(roomDefs.map((def) => [def.id, parseRoom(def)]));
+const rooms = new Map(roomDefs.map((def, index) => [def.id, parseRoom(def, index)]));
 const roomOrder = roomDefs.map((def) => def.id);
 const TOTAL_BERRIES = roomDefs.reduce((sum, def) => sum + [...def.map.join("")].filter((char) => char === "s").length, 0);
 const STORAGE_KEY = "needle-peak-best-v1";
@@ -673,12 +687,14 @@ const player = {
   trailTimer: 0,
 };
 
+const tileCollisionHit = { x: 0, y: 0, w: TILE, h: TILE };
+
 function currentRoom() {
   return rooms.get(state.currentRoomId);
 }
 
 function roomProgressLabel() {
-  return `${roomOrder.indexOf(state.currentRoomId) + 1} / ${roomOrder.length}`;
+  return currentRoom().progressLabel;
 }
 
 function bestTimeLabel() {
@@ -718,7 +734,13 @@ function setActionHeld(setRef, action, active) {
 
 function updateGamepadInput() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  const pad = [...pads].find(Boolean);
+  let pad = null;
+  for (let i = 0; i < pads.length; i += 1) {
+    if (pads[i]) {
+      pad = pads[i];
+      break;
+    }
+  }
   state.gamepadActive = !!pad;
 
   if (!pad) {
@@ -734,11 +756,11 @@ function updateGamepadInput() {
   setActionHeld(gamepadHeld, "up", axisY < -0.5 || !!pad.buttons[12]?.pressed);
   setActionHeld(gamepadHeld, "down", axisY > 0.5 || !!pad.buttons[13]?.pressed);
 
-  ACTIONS.forEach((action) => {
-    if (["left", "right", "up", "down"].includes(action)) return;
+  for (const action of ACTIONS) {
+    if (action === "left" || action === "right" || action === "up" || action === "down") continue;
     const pressedNow = (GAMEPAD_BUTTONS[action] || []).some((index) => pad.buttons[index]?.pressed);
     setActionHeld(gamepadHeld, action, pressedNow);
-  });
+  }
 }
 
 function bindTouchControls() {
@@ -847,33 +869,30 @@ function respawnAtCheckpoint() {
   state.roomIntroTimer = 1.25;
 }
 
+function overlapRect(x, y, w, h, target) {
+  return x < target.x + target.w && x + w > target.x && y < target.y + target.h && y + h > target.y;
+}
+
 function collidesAt(room, x, y) {
-  const rect = { x, y, w: player.w, h: player.h };
-  const leftTile = clamp(Math.floor(rect.x / TILE), 0, ROOM_W - 1);
-  const rightTile = clamp(Math.floor((rect.x + rect.w - 1) / TILE), 0, ROOM_W - 1);
-  const topTile = clamp(Math.floor(rect.y / TILE), 0, ROOM_H - 1);
-  const bottomTile = clamp(Math.floor((rect.y + rect.h - 1) / TILE), 0, ROOM_H - 1);
+  const leftTile = clamp(Math.floor(x / TILE), 0, ROOM_W - 1);
+  const rightTile = clamp(Math.floor((x + player.w - 1) / TILE), 0, ROOM_W - 1);
+  const topTile = clamp(Math.floor(y / TILE), 0, ROOM_H - 1);
+  const bottomTile = clamp(Math.floor((y + player.h - 1) / TILE), 0, ROOM_H - 1);
 
   for (let ty = topTile; ty <= bottomTile; ty += 1) {
     for (let tx = leftTile; tx <= rightTile; tx += 1) {
       if (room.solidMask[ty][tx]) {
-        return { x: tx * TILE, y: ty * TILE, w: TILE, h: TILE };
+        tileCollisionHit.x = tx * TILE;
+        tileCollisionHit.y = ty * TILE;
+        return tileCollisionHit;
       }
     }
   }
   for (const block of room.crumbles) {
-    if (block.state !== "gone" && overlap(rect, block)) return block;
+    if (block.state !== "gone" && overlapRect(x, y, player.w, player.h, block)) return block;
   }
   for (const mover of room.movers) {
-    const moverRect = {
-      x: mover.currentX,
-      y: mover.currentY,
-      w: mover.w,
-      h: mover.h,
-      moving: true,
-      mover,
-    };
-    if (overlap(rect, moverRect)) return moverRect;
+    if (overlapRect(x, y, player.w, player.h, mover)) return mover;
   }
   return null;
 }
@@ -1081,8 +1100,8 @@ function updatePlayer(dt) {
 
   player.trailTimer -= dt;
   if (player.dashTimer > 0 || Math.abs(player.vx) > 70 || Math.abs(player.vy) > 110) {
-    if (player.trailTimer <= 0) {
-      player.trail.unshift({
+  if (player.trailTimer <= 0) {
+      player.trail.push({
         x: player.x,
         y: player.y,
         t: player.dashTimer > 0 ? 0.2 : 0.1,
@@ -1090,14 +1109,18 @@ function updatePlayer(dt) {
       player.trailTimer = player.dashTimer > 0 ? 0.016 : 0.035;
     }
   }
-  for (let i = player.trail.length - 1; i >= 0; i -= 1) {
-    player.trail[i].t -= dt;
-    if (player.trail[i].t <= 0) {
-      player.trail.splice(i, 1);
+  let nextTrailLength = 0;
+  for (let i = 0; i < player.trail.length; i += 1) {
+    const afterimage = player.trail[i];
+    afterimage.t -= dt;
+    if (afterimage.t > 0) {
+      player.trail[nextTrailLength] = afterimage;
+      nextTrailLength += 1;
     }
   }
+  player.trail.length = nextTrailLength;
   if (player.trail.length > 6) {
-    player.trail.length = 6;
+    player.trail.splice(0, player.trail.length - 6);
   }
 
   if (player.dashTimer > 0) {
@@ -1131,9 +1154,12 @@ function updatePlayer(dt) {
   const hitY = moveY(room, Math.round(player.vy * dt));
   if (hitY && player.onGround) onCrumble(room, hitY);
 
-  room.hazards.forEach((hazard) => {
-    if (overlap(player, hazard)) killPlayer("Spikes won.");
-  });
+  for (const hazard of room.hazards) {
+    if (overlap(player, hazard)) {
+      killPlayer("Spikes won.");
+      return;
+    }
+  }
 
   room.springs.forEach((spring) => {
     if (overlap(player, spring) && player.vy >= 0) {
@@ -1209,7 +1235,7 @@ function drawRoom(room) {
 
   room.crumbles.forEach((block) => {
     if (block.state === "gone") return;
-    const shake = block.state === "shaking" ? (Math.random() > 0.5 ? 1 : -1) : 0;
+    const shake = block.state === "shaking" ? ((((block.x + block.y + Math.floor(state.visualTime * 40)) & 1) === 0) ? -1 : 1) : 0;
     ctx.fillStyle = block.state === "shaking" ? "#9a7154" : "#7d624d";
     ctx.fillRect(block.x + shake, block.y, block.w, block.h);
     ctx.fillStyle = "#d0a37b";
@@ -1424,13 +1450,15 @@ function currentPlayerPoseImage() {
 }
 
 function drawPlayer() {
-  player.trail.forEach((afterimage, index) => {
+  for (let i = player.trail.length - 1; i >= 0; i -= 1) {
+    const afterimage = player.trail[i];
+    const index = player.trail.length - 1 - i;
     ctx.save();
     ctx.globalAlpha = (afterimage.t / 0.2) * 0.18 * (1 - index / 6);
     ctx.fillStyle = player.dashTimer > 0 ? "#ffe27a" : "#ff8ab6";
     ctx.fillRect(afterimage.x, afterimage.y, player.w, player.h);
     ctx.restore();
-  });
+  }
 
   ctx.save();
   if (player.respawnFlash > 0) {
@@ -1524,8 +1552,9 @@ function drawHudOverlay() {
     ctx.strokeRect(96.5, 48.5, 191, 25);
     ctx.fillStyle = "#ffe08d";
     ctx.font = "700 12px Syne";
-    const title = currentRoom().name;
-    ctx.fillText(title, 192 - ctx.measureText(title).width / 2, 65);
+    ctx.textAlign = "center";
+    ctx.fillText(currentRoom().name, 192, 65);
+    ctx.textAlign = "start";
     ctx.restore();
   }
 
