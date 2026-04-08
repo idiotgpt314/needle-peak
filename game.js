@@ -16,16 +16,30 @@ const keys = new Set();
 const pressed = new Set();
 const virtualHeld = new Set();
 const virtualPressed = new Set();
+const gamepadHeld = new Set();
+const gamepadPressed = new Set();
 
 const inputMap = {
   left: ["ArrowLeft", "a", "A"],
   right: ["ArrowRight", "d", "D"],
   up: ["ArrowUp", "w", "W"],
   down: ["ArrowDown", "s", "S"],
-  jump: ["z", "Z", "c", "C", " "],
-  dash: ["x", "X", "Shift"],
-  restart: ["r", "R"],
-  pause: ["Escape"],
+  jump: ["z", "Z", "c", "C", "k", "K", " "],
+  dash: ["x", "X", "j", "J", "Shift"],
+  restart: ["r", "R", "Backspace"],
+  pause: ["Escape", "Enter"],
+};
+
+const ACTIONS = ["left", "right", "up", "down", "jump", "dash", "restart", "pause"];
+const GAMEPAD_BUTTONS = {
+  jump: [0],
+  dash: [1, 5],
+  restart: [3],
+  pause: [9],
+  left: [14],
+  right: [15],
+  up: [12],
+  down: [13],
 };
 
 document.addEventListener("keydown", (event) => {
@@ -43,11 +57,11 @@ document.addEventListener("keyup", (event) => {
 });
 
 function btn(name) {
-  return virtualHeld.has(name) || inputMap[name].some((key) => keys.has(key));
+  return virtualHeld.has(name) || gamepadHeld.has(name) || inputMap[name].some((key) => keys.has(key));
 }
 
 function btnPressed(name) {
-  return virtualPressed.has(name) || inputMap[name].some((key) => pressed.has(key));
+  return virtualPressed.has(name) || gamepadPressed.has(name) || inputMap[name].some((key) => pressed.has(key));
 }
 
 function clamp(value, min, max) {
@@ -440,6 +454,7 @@ function parseRoom(def) {
   const room = {
     ...def,
     solids: [],
+    solidMask: Array.from({ length: ROOM_H }, () => Array.from({ length: ROOM_W }, () => false)),
     hazards: [],
     springs: [],
     crystals: [],
@@ -464,7 +479,10 @@ function parseRoom(def) {
     [...row].forEach((char, x) => {
       const px = x * TILE;
       const py = y * TILE;
-      if (char === "#") room.solids.push({ x: px, y: py, w: TILE, h: TILE });
+      if (char === "#") {
+        room.solids.push({ x: px, y: py, w: TILE, h: TILE });
+        room.solidMask[y][x] = true;
+      }
       if (char === "^") room.hazards.push({ x: px + 2, y: py + 4, w: TILE - 4, h: TILE - 4, dir: "up" });
       if (char === "v") room.hazards.push({ x: px + 2, y: py, w: TILE - 4, h: TILE - 4, dir: "down" });
       if (char === "<") room.hazards.push({ x: px, y: py + 2, w: TILE - 4, h: TILE - 4, dir: "left" });
@@ -488,6 +506,95 @@ const roomOrder = roomDefs.map((def) => def.id);
 const TOTAL_BERRIES = roomDefs.reduce((sum, def) => sum + [...def.map.join("")].filter((char) => char === "s").length, 0);
 const STORAGE_KEY = "needle-peak-best-v1";
 
+function buildRoomStaticLayer(room) {
+  const layer = document.createElement("canvas");
+  layer.width = WORLD_W;
+  layer.height = WORLD_H;
+  const layerCtx = layer.getContext("2d");
+
+  const grad = layerCtx.createLinearGradient(0, 0, 0, WORLD_H);
+  grad.addColorStop(0, room.colorA);
+  grad.addColorStop(1, room.colorB);
+  layerCtx.fillStyle = grad;
+  layerCtx.fillRect(0, 0, WORLD_W, WORLD_H);
+
+  const skyGlow = layerCtx.createRadialGradient(WORLD_W * 0.72, 38, 6, WORLD_W * 0.72, 38, 110);
+  skyGlow.addColorStop(0, "rgba(255, 242, 186, 0.34)");
+  skyGlow.addColorStop(1, "rgba(255, 242, 186, 0)");
+  layerCtx.fillStyle = skyGlow;
+  layerCtx.fillRect(0, 0, WORLD_W, 140);
+
+  layerCtx.fillStyle = "rgba(10, 20, 34, 0.24)";
+  layerCtx.beginPath();
+  layerCtx.moveTo(0, 124);
+  layerCtx.lineTo(48, 88);
+  layerCtx.lineTo(92, 116);
+  layerCtx.lineTo(140, 68);
+  layerCtx.lineTo(196, 110);
+  layerCtx.lineTo(252, 72);
+  layerCtx.lineTo(316, 118);
+  layerCtx.lineTo(384, 94);
+  layerCtx.lineTo(384, 224);
+  layerCtx.lineTo(0, 224);
+  layerCtx.closePath();
+  layerCtx.fill();
+
+  layerCtx.fillStyle = "rgba(5, 11, 21, 0.28)";
+  layerCtx.beginPath();
+  layerCtx.moveTo(0, 150);
+  layerCtx.lineTo(58, 104);
+  layerCtx.lineTo(100, 138);
+  layerCtx.lineTo(150, 92);
+  layerCtx.lineTo(220, 142);
+  layerCtx.lineTo(264, 110);
+  layerCtx.lineTo(332, 154);
+  layerCtx.lineTo(384, 122);
+  layerCtx.lineTo(384, 224);
+  layerCtx.lineTo(0, 224);
+  layerCtx.closePath();
+  layerCtx.fill();
+
+  room.solids.forEach((solid) => {
+    const tileGrad = layerCtx.createLinearGradient(solid.x, solid.y, solid.x, solid.y + solid.h);
+    tileGrad.addColorStop(0, "#35506f");
+    tileGrad.addColorStop(1, "#172334");
+    layerCtx.fillStyle = tileGrad;
+    layerCtx.fillRect(solid.x, solid.y, solid.w, solid.h);
+    layerCtx.fillStyle = "#73a3db";
+    layerCtx.fillRect(solid.x + 1, solid.y + 1, solid.w - 2, 4);
+    layerCtx.fillStyle = "rgba(7, 12, 20, 0.35)";
+    layerCtx.fillRect(solid.x + 1, solid.y + solid.h - 3, solid.w - 2, 2);
+  });
+
+  room.hazards.forEach((hazard) => {
+    layerCtx.fillStyle = "#ff6b6b";
+    layerCtx.beginPath();
+    if (hazard.dir === "up") {
+      layerCtx.moveTo(hazard.x, hazard.y + hazard.h);
+      layerCtx.lineTo(hazard.x + hazard.w / 2, hazard.y);
+      layerCtx.lineTo(hazard.x + hazard.w, hazard.y + hazard.h);
+    } else if (hazard.dir === "down") {
+      layerCtx.moveTo(hazard.x, hazard.y);
+      layerCtx.lineTo(hazard.x + hazard.w / 2, hazard.y + hazard.h);
+      layerCtx.lineTo(hazard.x + hazard.w, hazard.y);
+    } else if (hazard.dir === "left") {
+      layerCtx.moveTo(hazard.x + hazard.w, hazard.y);
+      layerCtx.lineTo(hazard.x, hazard.y + hazard.h / 2);
+      layerCtx.lineTo(hazard.x + hazard.w, hazard.y + hazard.h);
+    } else {
+      layerCtx.moveTo(hazard.x, hazard.y);
+      layerCtx.lineTo(hazard.x + hazard.w, hazard.y + hazard.h / 2);
+      layerCtx.lineTo(hazard.x, hazard.y + hazard.h);
+    }
+    layerCtx.closePath();
+    layerCtx.fill();
+  });
+
+  room.staticLayer = layer;
+}
+
+rooms.forEach((room) => buildRoomStaticLayer(room));
+
 const savedBest = (() => {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
@@ -510,6 +617,7 @@ const state = {
   transitionCooldown: 0,
   roomIntroTimer: 1.8,
   transitionFlash: 0,
+  gamepadActive: false,
 };
 
 const player = {
@@ -532,6 +640,7 @@ const player = {
   jumpCut: false,
   respawnFlash: 0,
   trail: [],
+  trailTimer: 0,
 };
 
 function currentRoom() {
@@ -562,6 +671,44 @@ function saveBestStats() {
   } catch {
     // Ignore storage failures in restricted browser modes.
   }
+}
+
+function setActionHeld(setRef, action, active) {
+  if (active) {
+    if (!setRef.has(action)) {
+      if (setRef === gamepadHeld) {
+        gamepadPressed.add(action);
+      }
+    }
+    setRef.add(action);
+  } else {
+    setRef.delete(action);
+  }
+}
+
+function updateGamepadInput() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const pad = [...pads].find(Boolean);
+  state.gamepadActive = !!pad;
+
+  if (!pad) {
+    gamepadHeld.clear();
+    return;
+  }
+
+  const axisX = pad.axes[0] || 0;
+  const axisY = pad.axes[1] || 0;
+
+  setActionHeld(gamepadHeld, "left", axisX < -0.38 || !!pad.buttons[14]?.pressed);
+  setActionHeld(gamepadHeld, "right", axisX > 0.38 || !!pad.buttons[15]?.pressed);
+  setActionHeld(gamepadHeld, "up", axisY < -0.5 || !!pad.buttons[12]?.pressed);
+  setActionHeld(gamepadHeld, "down", axisY > 0.5 || !!pad.buttons[13]?.pressed);
+
+  ACTIONS.forEach((action) => {
+    if (["left", "right", "up", "down"].includes(action)) return;
+    const pressedNow = (GAMEPAD_BUTTONS[action] || []).some((index) => pad.buttons[index]?.pressed);
+    setActionHeld(gamepadHeld, action, pressedNow);
+  });
 }
 
 function bindTouchControls() {
@@ -664,6 +811,7 @@ function respawnAtCheckpoint() {
   player.wallGrace = 0;
   player.respawnFlash = 0.4;
   player.trail = [];
+  player.trailTimer = 0;
   state.transitionCooldown = 0.15;
   state.transitionFlash = 0.28;
   state.roomIntroTimer = 1.25;
@@ -671,8 +819,17 @@ function respawnAtCheckpoint() {
 
 function collidesAt(room, x, y) {
   const rect = { x, y, w: player.w, h: player.h };
-  for (const solid of room.solids) {
-    if (overlap(rect, solid)) return solid;
+  const leftTile = clamp(Math.floor(rect.x / TILE), 0, ROOM_W - 1);
+  const rightTile = clamp(Math.floor((rect.x + rect.w - 1) / TILE), 0, ROOM_W - 1);
+  const topTile = clamp(Math.floor(rect.y / TILE), 0, ROOM_H - 1);
+  const bottomTile = clamp(Math.floor((rect.y + rect.h - 1) / TILE), 0, ROOM_H - 1);
+
+  for (let ty = topTile; ty <= bottomTile; ty += 1) {
+    for (let tx = leftTile; tx <= rightTile; tx += 1) {
+      if (room.solidMask[ty][tx]) {
+        return { x: tx * TILE, y: ty * TILE, w: TILE, h: TILE };
+      }
+    }
   }
   for (const block of room.crumbles) {
     if (block.state !== "gone" && overlap(rect, block)) return block;
@@ -892,15 +1049,26 @@ function updatePlayer(dt) {
     player.dashBuffer = 0;
   }
 
-  player.trail.unshift({
-    x: player.x,
-    y: player.y,
-    t: player.dashTimer > 0 ? 0.2 : 0.12,
-  });
-  player.trail = player.trail
-    .map((afterimage) => ({ ...afterimage, t: afterimage.t - dt }))
-    .filter((afterimage) => afterimage.t > 0)
-    .slice(0, 6);
+  player.trailTimer -= dt;
+  if (player.dashTimer > 0 || Math.abs(player.vx) > 70 || Math.abs(player.vy) > 110) {
+    if (player.trailTimer <= 0) {
+      player.trail.unshift({
+        x: player.x,
+        y: player.y,
+        t: player.dashTimer > 0 ? 0.2 : 0.1,
+      });
+      player.trailTimer = player.dashTimer > 0 ? 0.016 : 0.035;
+    }
+  }
+  for (let i = player.trail.length - 1; i >= 0; i -= 1) {
+    player.trail[i].t -= dt;
+    if (player.trail[i].t <= 0) {
+      player.trail.splice(i, 1);
+    }
+  }
+  if (player.trail.length > 6) {
+    player.trail.length = 6;
+  }
 
   if (player.dashTimer > 0) {
     player.dashTimer -= dt;
@@ -992,17 +1160,7 @@ function updatePlayer(dt) {
 }
 
 function drawRoom(room) {
-  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  grad.addColorStop(0, room.colorA);
-  grad.addColorStop(1, room.colorB);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const skyGlow = ctx.createRadialGradient(WORLD_W * 0.72, 38, 6, WORLD_W * 0.72, 38, 110);
-  skyGlow.addColorStop(0, "rgba(255, 242, 186, 0.34)");
-  skyGlow.addColorStop(1, "rgba(255, 242, 186, 0)");
-  ctx.fillStyle = skyGlow;
-  ctx.fillRect(0, 0, WORLD_W, 140);
+  ctx.drawImage(room.staticLayer, 0, 0);
 
   STARFIELD.forEach((star) => {
     ctx.fillStyle = `rgba(255,255,255,${star.alpha})`;
@@ -1011,48 +1169,6 @@ function drawRoom(room) {
     ctx.beginPath();
     ctx.arc(x, y, star.size, 0, Math.PI * 2);
     ctx.fill();
-  });
-
-  ctx.fillStyle = "rgba(10, 20, 34, 0.24)";
-  ctx.beginPath();
-  ctx.moveTo(0, 124);
-  ctx.lineTo(48, 88);
-  ctx.lineTo(92, 116);
-  ctx.lineTo(140, 68);
-  ctx.lineTo(196, 110);
-  ctx.lineTo(252, 72);
-  ctx.lineTo(316, 118);
-  ctx.lineTo(384, 94);
-  ctx.lineTo(384, 224);
-  ctx.lineTo(0, 224);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = "rgba(5, 11, 21, 0.28)";
-  ctx.beginPath();
-  ctx.moveTo(0, 150);
-  ctx.lineTo(58, 104);
-  ctx.lineTo(100, 138);
-  ctx.lineTo(150, 92);
-  ctx.lineTo(220, 142);
-  ctx.lineTo(264, 110);
-  ctx.lineTo(332, 154);
-  ctx.lineTo(384, 122);
-  ctx.lineTo(384, 224);
-  ctx.lineTo(0, 224);
-  ctx.closePath();
-  ctx.fill();
-
-  room.solids.forEach((solid) => {
-    const tileGrad = ctx.createLinearGradient(solid.x, solid.y, solid.x, solid.y + solid.h);
-    tileGrad.addColorStop(0, "#35506f");
-    tileGrad.addColorStop(1, "#172334");
-    ctx.fillStyle = tileGrad;
-    ctx.fillRect(solid.x, solid.y, solid.w, solid.h);
-    ctx.fillStyle = "#73a3db";
-    ctx.fillRect(solid.x + 1, solid.y + 1, solid.w - 2, 4);
-    ctx.fillStyle = "rgba(7, 12, 20, 0.35)";
-    ctx.fillRect(solid.x + 1, solid.y + solid.h - 3, solid.w - 2, 2);
   });
 
   room.crumbles.forEach((block) => {
@@ -1073,30 +1189,6 @@ function drawRoom(room) {
     ctx.fillRect(mover.currentX + 2, mover.currentY + 2, mover.w - 4, 4);
     ctx.fillStyle = "rgba(129, 244, 225, 0.18)";
     ctx.fillRect(mover.currentX + 1, mover.currentY + 1, mover.w - 2, mover.h - 2);
-  });
-
-  room.hazards.forEach((hazard) => {
-    ctx.fillStyle = "#ff6b6b";
-    ctx.beginPath();
-    if (hazard.dir === "up") {
-      ctx.moveTo(hazard.x, hazard.y + hazard.h);
-      ctx.lineTo(hazard.x + hazard.w / 2, hazard.y);
-      ctx.lineTo(hazard.x + hazard.w, hazard.y + hazard.h);
-    } else if (hazard.dir === "down") {
-      ctx.moveTo(hazard.x, hazard.y);
-      ctx.lineTo(hazard.x + hazard.w / 2, hazard.y + hazard.h);
-      ctx.lineTo(hazard.x + hazard.w, hazard.y);
-    } else if (hazard.dir === "left") {
-      ctx.moveTo(hazard.x + hazard.w, hazard.y);
-      ctx.lineTo(hazard.x, hazard.y + hazard.h / 2);
-      ctx.lineTo(hazard.x + hazard.w, hazard.y + hazard.h);
-    } else {
-      ctx.moveTo(hazard.x, hazard.y);
-      ctx.lineTo(hazard.x + hazard.w, hazard.y + hazard.h / 2);
-      ctx.lineTo(hazard.x, hazard.y + hazard.h);
-    }
-    ctx.closePath();
-    ctx.fill();
   });
 
   room.springs.forEach((spring) => {
@@ -1203,7 +1295,7 @@ function drawHudOverlay() {
   ctx.fillText(`${roomProgressLabel()}  Berries ${state.berriesCollected.size}/${TOTAL_BERRIES}`, 142, 31);
 
   ctx.fillStyle = "rgba(4, 8, 16, 0.42)";
-  ctx.fillRect(262, 8, 114, 30);
+  ctx.fillRect(262, 8, 114, 40);
   ctx.fillStyle = "#78f6ff";
   ctx.font = "700 8px Space Grotesk";
   ctx.fillText("RUN", 268, 20);
@@ -1212,6 +1304,8 @@ function drawHudOverlay() {
   ctx.fillText(formatTime(state.timer), 268, 28);
   ctx.fillText(`Best ${bestTimeLabel()}`, 320, 20);
   ctx.fillText(`BD ${bestDeathsLabel()}`, 320, 31);
+  ctx.fillStyle = "#b9cadf";
+  ctx.fillText(state.gamepadActive ? "PAD" : "KB", 268, 41);
 
   for (let i = 0; i < Math.max(1, player.dashCharges); i += 1) {
     ctx.fillStyle = i < player.dashCharges ? "#78f6ff" : "rgba(120,246,255,0.18)";
@@ -1244,6 +1338,7 @@ function frame(now) {
   const dt = Math.min(1 / 30, (now - lastTime) / 1000);
   lastTime = now;
   state.visualTime += dt;
+  updateGamepadInput();
 
   if (state.mode === "playing") {
     state.timer += dt;
@@ -1259,6 +1354,7 @@ function frame(now) {
 
   pressed.clear();
   virtualPressed.clear();
+  gamepadPressed.clear();
   requestAnimationFrame(frame);
 }
 
