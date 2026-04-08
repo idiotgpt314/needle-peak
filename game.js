@@ -524,6 +524,12 @@ function buildRoomStaticLayer(room) {
   layerCtx.fillStyle = skyGlow;
   layerCtx.fillRect(0, 0, WORLD_W, 140);
 
+  const haze = layerCtx.createLinearGradient(0, 0, 0, 140);
+  haze.addColorStop(0, "rgba(255,255,255,0.06)");
+  haze.addColorStop(1, "rgba(255,255,255,0)");
+  layerCtx.fillStyle = haze;
+  layerCtx.fillRect(0, 0, WORLD_W, 140);
+
   layerCtx.fillStyle = "rgba(10, 20, 34, 0.24)";
   layerCtx.beginPath();
   layerCtx.moveTo(0, 124);
@@ -564,6 +570,9 @@ function buildRoomStaticLayer(room) {
     layerCtx.fillRect(solid.x + 1, solid.y + 1, solid.w - 2, 4);
     layerCtx.fillStyle = "rgba(7, 12, 20, 0.35)";
     layerCtx.fillRect(solid.x + 1, solid.y + solid.h - 3, solid.w - 2, 2);
+    layerCtx.fillStyle = "rgba(255,255,255,0.05)";
+    layerCtx.fillRect(solid.x + 2, solid.y + 6, solid.w - 8, 1);
+    layerCtx.fillRect(solid.x + 4, solid.y + 10, solid.w - 10, 1);
   });
 
   room.hazards.forEach((hazard) => {
@@ -588,6 +597,9 @@ function buildRoomStaticLayer(room) {
     }
     layerCtx.closePath();
     layerCtx.fill();
+    layerCtx.strokeStyle = "rgba(255,255,255,0.22)";
+    layerCtx.lineWidth = 1;
+    layerCtx.stroke();
   });
 
   room.staticLayer = layer;
@@ -1171,10 +1183,16 @@ function drawRoom(room) {
     ctx.fill();
   });
 
+  ctx.fillStyle = "rgba(255,255,255,0.025)";
+  for (let i = 0; i < 6; i += 1) {
+    const bandY = 70 + i * 18 + Math.sin(state.visualTime * 0.6 + i) * 2;
+    ctx.fillRect(0, bandY, WORLD_W, 1);
+  }
+
   room.crumbles.forEach((block) => {
     if (block.state === "gone") return;
     const shake = block.state === "shaking" ? (Math.random() > 0.5 ? 1 : -1) : 0;
-    ctx.fillStyle = "#7d624d";
+    ctx.fillStyle = block.state === "shaking" ? "#9a7154" : "#7d624d";
     ctx.fillRect(block.x + shake, block.y, block.w, block.h);
     ctx.fillStyle = "#d0a37b";
     ctx.fillRect(block.x + 2 + shake, block.y + 2, block.w - 4, block.h - 7);
@@ -1189,15 +1207,19 @@ function drawRoom(room) {
     ctx.fillRect(mover.currentX + 2, mover.currentY + 2, mover.w - 4, 4);
     ctx.fillStyle = "rgba(129, 244, 225, 0.18)";
     ctx.fillRect(mover.currentX + 1, mover.currentY + 1, mover.w - 2, mover.h - 2);
+    ctx.fillStyle = "rgba(255,255,255,0.1)";
+    ctx.fillRect(mover.currentX + 3, mover.currentY + 7, mover.w - 8, 1);
   });
 
   room.springs.forEach((spring) => {
-    ctx.fillStyle = "#4de18b";
+    ctx.fillStyle = "#36c970";
     ctx.fillRect(spring.x, spring.y, spring.w, spring.h);
     ctx.fillStyle = "#d8ffee";
     ctx.fillRect(spring.x + 2, spring.y + 2, spring.w - 4, 3);
     ctx.fillStyle = "rgba(77, 225, 139, 0.18)";
     ctx.fillRect(spring.x, spring.y - 6, spring.w, 6);
+    ctx.fillStyle = "#9affc0";
+    ctx.fillRect(spring.x + 3, spring.y - 2, spring.w - 6, 2);
   });
 
   room.crystals.forEach((crystal) => {
@@ -1213,6 +1235,11 @@ function drawRoom(room) {
     ctx.lineTo(crystal.x, crystal.y + crystal.h / 2);
     ctx.closePath();
     ctx.fill();
+    if (crystal.active) {
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.fillRect(crystal.x + 4, crystal.y + 3, 1, 3);
+      ctx.fillRect(crystal.x + 3, crystal.y + 4, 3, 1);
+    }
   });
 
   room.berries.forEach((berry) => {
@@ -1227,27 +1254,133 @@ function drawRoom(room) {
     ctx.beginPath();
     ctx.arc(berry.x + 4, berry.y + 4, 4, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fillRect(berry.x + 5, berry.y + 2, 1, 1);
     ctx.fillStyle = "#8affad";
     ctx.fillRect(berry.x + 3, berry.y - 1, 2, 3);
   });
 
   room.checkpoints.forEach((checkpoint) => {
-    ctx.fillStyle = "rgba(255, 209, 102, 0.22)";
+    ctx.fillStyle = "rgba(255, 209, 102, 0.18)";
     ctx.fillRect(checkpoint.x, checkpoint.y, checkpoint.w, checkpoint.h);
     if (state.checkpoint.roomId === state.currentRoomId && Math.abs(state.checkpoint.x - checkpoint.x) < 3) {
       ctx.fillStyle = "#ffd166";
       ctx.fillRect(checkpoint.x + 4, checkpoint.y - 6, 4, 8);
       ctx.fillStyle = "rgba(255, 209, 102, 0.15)";
       ctx.fillRect(checkpoint.x + 5, checkpoint.y - 22, 2, 16);
+      ctx.fillStyle = "rgba(255, 209, 102, 0.22)";
+      ctx.beginPath();
+      ctx.arc(checkpoint.x + 6, checkpoint.y - 22, 6, 0, Math.PI * 2);
+      ctx.fill();
     }
   });
 
   if (room.goal) {
+    ctx.fillStyle = "rgba(255,244,186,0.16)";
+    ctx.fillRect(room.goal.x - 4, room.goal.y - 10, room.goal.w + 8, room.goal.h + 12);
     ctx.fillStyle = "#fff4ba";
     ctx.fillRect(room.goal.x, room.goal.y, room.goal.w, room.goal.h);
     ctx.fillStyle = "#f28ea8";
-    ctx.fillRect(room.goal.x + 4, room.goal.y - 10, 3, 10);
+    ctx.fillRect(room.goal.x + 4, room.goal.y - 12, 3, 12);
+    ctx.fillStyle = "#fff7d6";
+    ctx.fillRect(room.goal.x + 1, room.goal.y + 1, room.goal.w - 2, 2);
   }
+}
+
+function drawPixelSprite(pattern, palette, ox, oy, scale = 1) {
+  for (let y = 0; y < pattern.length; y += 1) {
+    const row = pattern[y];
+    for (let x = 0; x < row.length; x += 1) {
+      const token = row[x];
+      if (token === ".") continue;
+      ctx.fillStyle = palette[token];
+      ctx.fillRect(ox + x * scale, oy + y * scale, scale, scale);
+    }
+  }
+}
+
+function currentPlayerSprite() {
+  const standing = [
+    ".hhhhhh.",
+    "hhssssh.",
+    "hssffssh",
+    "hseffesh",
+    "hsffffsh",
+    ".shhhhs.",
+    ".jccccj.",
+    "jjccccjj",
+    ".ccbbcc.",
+    ".cbbbbc.",
+    ".b....b.",
+    "bb....bb",
+  ];
+
+  const runA = [
+    ".hhhhhh.",
+    "hhssssh.",
+    "hssffssh",
+    "hseffesh",
+    "hsffffsh",
+    ".shhhhs.",
+    ".jccccj.",
+    ".jccccjj",
+    ".ccbbcc.",
+    "ccbbbb..",
+    ".b..b...",
+    "bb..bb..",
+  ];
+
+  const runB = [
+    ".hhhhhh.",
+    "hhssssh.",
+    "hssffssh",
+    "hseffesh",
+    "hsffffsh",
+    ".shhhhs.",
+    ".jccccj.",
+    "jjccccj.",
+    ".ccbbcc.",
+    "..bbbbcc",
+    "...b..b.",
+    "..bb..bb",
+  ];
+
+  const jump = [
+    ".hhhhhh.",
+    "hhssssh.",
+    "hssffssh",
+    "hseffesh",
+    "hsffffsh",
+    ".shhhhs.",
+    ".jccccj.",
+    "jjccccjj",
+    "..cbbcc.",
+    ".ccbb...",
+    ".b..bb..",
+    "bb....b.",
+  ];
+
+  const dash = [
+    "..hhhhhh",
+    ".hhssssh",
+    ".hssffss",
+    ".hseffes",
+    ".hsffffs",
+    "..shhhhs",
+    "..jccccj",
+    "jjjccccj",
+    "..ccbbcc",
+    "..cbbbbc",
+    "...b..bb",
+    "..bb...b",
+  ];
+
+  if (player.dashTimer > 0) return dash;
+  if (!player.onGround) return jump;
+  if (Math.abs(player.vx) > 38) {
+    return Math.floor(state.visualTime * 10) % 2 === 0 ? runA : runB;
+  }
+  return standing;
 }
 
 function drawPlayer() {
@@ -1265,61 +1398,86 @@ function drawPlayer() {
   }
   ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
   ctx.scale(player.facing, 1);
-  ctx.fillStyle = player.dashTimer > 0 ? "#ffe27a" : "#fff7fc";
-  ctx.fillRect(-5, -7, 10, 14);
-  ctx.fillStyle = "#ff6fae";
-  ctx.fillRect(-4, -6, 8, 6);
-  ctx.fillStyle = "#111827";
-  ctx.fillRect(0, -2, 2, 2);
-  ctx.fillStyle = player.dashTimer > 0 ? "#fff8cb" : "#ff5e98";
-  ctx.fillRect(-6, -8, 3, 10);
+  const palette = {
+    h: player.dashTimer > 0 ? "#fff3aa" : "#ff4f93",
+    s: "#fff7fc",
+    f: "#ffd8bf",
+    e: "#111827",
+    c: player.dashTimer > 0 ? "#ffe27a" : "#5f79c7",
+    b: "#19263b",
+    j: player.dashTimer > 0 ? "#fff4c1" : "#ff9fbe",
+  };
+  drawPixelSprite(currentPlayerSprite(), palette, -4, -7, 1);
   ctx.restore();
 }
 
 function drawHudOverlay() {
-  ctx.fillStyle = "rgba(4, 8, 16, 0.42)";
-  ctx.fillRect(8, 8, 122, 30);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "700 8px Space Grotesk";
-  ctx.fillText(currentRoom().name.toUpperCase(), 14, 20);
-  ctx.font = "10px Space Grotesk";
-  ctx.fillText(`Deaths ${state.deaths}`, 14, 31);
+  const panel = (x, y, w, h) => {
+    ctx.fillStyle = "rgba(5, 10, 18, 0.72)";
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = "rgba(189, 223, 255, 0.15)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  };
 
-  ctx.fillStyle = "rgba(4, 8, 16, 0.42)";
-  ctx.fillRect(136, 8, 120, 30);
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+  ctx.shadowBlur = 10;
+  panel(8, 8, 118, 34);
+  panel(132, 8, 126, 34);
+  panel(264, 8, 112, 46);
+  ctx.restore();
+
   ctx.fillStyle = "#ffd166";
   ctx.font = "700 8px Space Grotesk";
-  ctx.fillText("PROGRESS", 142, 20);
-  ctx.fillStyle = "#ffffff";
+  ctx.fillText("ROOM", 14, 18);
+  ctx.fillStyle = "#f7fbff";
+  ctx.font = "700 11px Space Grotesk";
+  ctx.fillText(currentRoom().name, 14, 31);
   ctx.font = "10px Space Grotesk";
-  ctx.fillText(`${roomProgressLabel()}  Berries ${state.berriesCollected.size}/${TOTAL_BERRIES}`, 142, 31);
+  ctx.fillStyle = "#d2dfec";
+  ctx.fillText(`Deaths ${state.deaths}`, 70, 31);
 
-  ctx.fillStyle = "rgba(4, 8, 16, 0.42)";
-  ctx.fillRect(262, 8, 114, 40);
   ctx.fillStyle = "#78f6ff";
   ctx.font = "700 8px Space Grotesk";
-  ctx.fillText("RUN", 268, 20);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "9px Space Grotesk";
-  ctx.fillText(formatTime(state.timer), 268, 28);
-  ctx.fillText(`Best ${bestTimeLabel()}`, 320, 20);
-  ctx.fillText(`BD ${bestDeathsLabel()}`, 320, 31);
-  ctx.fillStyle = "#b9cadf";
-  ctx.fillText(state.gamepadActive ? "PAD" : "KB", 268, 41);
+  ctx.fillText("PROGRESS", 138, 18);
+  ctx.fillStyle = "#f7fbff";
+  ctx.font = "700 11px Space Grotesk";
+  ctx.fillText(roomProgressLabel(), 138, 31);
+  ctx.font = "10px Space Grotesk";
+  ctx.fillStyle = "#d2dfec";
+  ctx.fillText(`Berries ${state.berriesCollected.size}/${TOTAL_BERRIES}`, 184, 31);
+
+  ctx.fillStyle = "#b7faff";
+  ctx.font = "700 8px Space Grotesk";
+  ctx.fillText("RUN", 270, 18);
+  ctx.fillStyle = "#f7fbff";
+  ctx.font = "700 12px Space Grotesk";
+  ctx.fillText(formatTime(state.timer), 270, 31);
+  ctx.font = "8px Space Grotesk";
+  ctx.fillStyle = "#d2dfec";
+  ctx.fillText(`Best ${bestTimeLabel()}`, 270, 43);
+  ctx.fillText(`BD ${bestDeathsLabel()}`, 343, 43);
 
   for (let i = 0; i < Math.max(1, player.dashCharges); i += 1) {
+    const dx = canvas.width - 17 - i * 12;
     ctx.fillStyle = i < player.dashCharges ? "#78f6ff" : "rgba(120,246,255,0.18)";
-    ctx.fillRect(canvas.width - 18 - i * 10, 14, 8, 8);
+    ctx.fillRect(dx, 14, 9, 9);
+    ctx.fillStyle = i < player.dashCharges ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.08)";
+    ctx.fillRect(dx + 1, 15, 7, 2);
   }
 
   if (state.roomIntroTimer > 0) {
     ctx.save();
     ctx.globalAlpha = Math.min(1, state.roomIntroTimer);
-    ctx.fillStyle = "rgba(4, 8, 16, 0.42)";
-    ctx.fillRect(110, 44, 164, 22);
-    ctx.fillStyle = "#ffd166";
-    ctx.font = "700 10px Syne";
-    ctx.fillText(currentRoom().name, 162 - ctx.measureText(currentRoom().name).width / 2, 58);
+    ctx.fillStyle = "rgba(5, 10, 18, 0.66)";
+    ctx.fillRect(96, 48, 192, 26);
+    ctx.strokeStyle = "rgba(255, 209, 102, 0.2)";
+    ctx.strokeRect(96.5, 48.5, 191, 25);
+    ctx.fillStyle = "#ffe08d";
+    ctx.font = "700 12px Syne";
+    const title = currentRoom().name;
+    ctx.fillText(title, 192 - ctx.measureText(title).width / 2, 65);
     ctx.restore();
   }
 
