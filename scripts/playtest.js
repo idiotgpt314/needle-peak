@@ -59,6 +59,46 @@ async function pressSequence(page, steps) {
   }
 }
 
+async function runWatchDemo(page) {
+  logStep("Running headed watch demo");
+  await page.goto(url, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Begin Run" }).click();
+  await page.waitForTimeout(700);
+
+  // Keep the camera in a safe, readable part of the first room.
+  await teleport(page, "ridge-1", 24, 178);
+  await page.waitForTimeout(500);
+
+  await pressSequence(page, [
+    { type: "down", key: "ArrowRight", note: "Short grounded movement" },
+    { type: "wait", ms: 700 },
+    { type: "up", key: "ArrowRight" },
+    { type: "wait", ms: 500 },
+    { type: "press", key: "k", note: "Jump" },
+    { type: "wait", ms: 700 },
+    { type: "down", key: "ArrowRight", note: "Jump then dash" },
+    { type: "wait", ms: 220 },
+    { type: "press", key: "j" },
+    { type: "wait", ms: 500 },
+    { type: "up", key: "ArrowRight" },
+    { type: "wait", ms: 600 },
+  ]);
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(600);
+  await page.getByRole("button", { name: "Resume" }).click();
+  await page.waitForTimeout(700);
+
+  await page.keyboard.press("r");
+  await page.waitForTimeout(500);
+  await page.getByRole("button", { name: "Retry" }).click();
+  await page.waitForTimeout(900);
+
+  // Leave the page open briefly at a stable spawn so it is easy to inspect.
+  await teleport(page, "ridge-1", 24, 178);
+  await page.waitForTimeout(2000);
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: !headed, slowMo });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -73,6 +113,14 @@ async function main() {
       consoleErrors.push(`console: ${msg.text()}`);
     }
   });
+
+  if (watch) {
+    await runWatchDemo(page);
+    const final = await snapshot(page);
+    console.log(JSON.stringify({ url, findings, consoleErrors, final }, null, 2));
+    await browser.close();
+    process.exit(consoleErrors.length ? 1 : 0);
+  }
 
   logStep(`Opening ${url}`);
   await page.goto(url, { waitUntil: "networkidle" });
