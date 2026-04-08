@@ -6,3 +6,5 @@ hud-built-in*.png
 opt-pass.png
 .vercel
 node_modules/
+kenney-sprite-check.png
+player-grounded-check.png
