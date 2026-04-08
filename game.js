@@ -92,6 +92,24 @@ const STARFIELD = Array.from({ length: 28 }, (_, index) => ({
   alpha: 0.05 + (index % 4) * 0.018,
 }));
 
+const PLAYER_POSE_FILES = {
+  stand: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_stand.png",
+  idle: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_idle.png",
+  walk1: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_walk1.png",
+  walk2: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_walk2.png",
+  jump: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_jump.png",
+  fall: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_fall.png",
+  dash: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_skid.png",
+};
+
+const playerPoseImages = Object.fromEntries(
+  Object.entries(PLAYER_POSE_FILES).map(([key, src]) => {
+    const image = new Image();
+    image.src = src;
+    return [key, image];
+  })
+);
+
 const roomDefs = [
   {
     id: "ridge-1",
@@ -1301,9 +1319,10 @@ function drawPixelSprite(pattern, palette, ox, oy, scale = 1) {
 
 function currentPlayerSprite() {
   const standing = [
-    ".hhhhhh.",
-    "hhssssh.",
-    "hssffssh",
+    "..hhhh..",
+    ".hhsshh.",
+    ".hsffsh.",
+    "hhsffshh",
     "hseffesh",
     "hsffffsh",
     ".shhhhs.",
@@ -1311,44 +1330,50 @@ function currentPlayerSprite() {
     "jjccccjj",
     ".ccbbcc.",
     ".cbbbbc.",
-    ".b....b.",
+    ".bb..bb.",
+    ".bb..bb.",
     "bb....bb",
   ];
 
   const runA = [
-    ".hhhhhh.",
-    "hhssssh.",
-    "hssffssh",
+    "..hhhh..",
+    ".hhsshh.",
+    ".hsffsh.",
+    "hhsffshh",
     "hseffesh",
     "hsffffsh",
     ".shhhhs.",
     ".jccccj.",
     ".jccccjj",
     ".ccbbcc.",
-    "ccbbbb..",
-    ".b..b...",
+    ".cbbbbc.",
     "bb..bb..",
+    "..bb..b.",
+    ".bb.....",
   ];
 
   const runB = [
-    ".hhhhhh.",
-    "hhssssh.",
-    "hssffssh",
+    "..hhhh..",
+    ".hhsshh.",
+    ".hsffsh.",
+    "hhsffshh",
     "hseffesh",
     "hsffffsh",
     ".shhhhs.",
     ".jccccj.",
     "jjccccj.",
     ".ccbbcc.",
-    "..bbbbcc",
-    "...b..b.",
+    ".cbbbbc.",
     "..bb..bb",
+    ".b..bb..",
+    ".....bb.",
   ];
 
   const jump = [
-    ".hhhhhh.",
-    "hhssssh.",
-    "hssffssh",
+    "..hhhh..",
+    ".hhsshh.",
+    ".hsffsh.",
+    "hhsffshh",
     "hseffesh",
     "hsffffsh",
     ".shhhhs.",
@@ -1356,23 +1381,26 @@ function currentPlayerSprite() {
     "jjccccjj",
     "..cbbcc.",
     ".ccbb...",
-    ".b..bb..",
+    ".bb..b..",
     "bb....b.",
+    ".b....b.",
   ];
 
   const dash = [
-    "..hhhhhh",
-    ".hhssssh",
-    ".hssffss",
-    ".hseffes",
+    "...hhhhh",
+    "..hhsssh",
+    "..hsffss",
+    ".hhsffes",
     ".hsffffs",
     "..shhhhs",
     "..jccccj",
     "jjjccccj",
     "..ccbbcc",
     "..cbbbbc",
-    "...b..bb",
+    "...bbbbb",
     "..bb...b",
+    ".bb.....",
+    "........",
   ];
 
   if (player.dashTimer > 0) return dash;
@@ -1381,6 +1409,18 @@ function currentPlayerSprite() {
     return Math.floor(state.visualTime * 10) % 2 === 0 ? runA : runB;
   }
   return standing;
+}
+
+function currentPlayerPoseImage() {
+  if (player.dashTimer > 0) return playerPoseImages.dash;
+  if (!player.onGround && player.vy > 40) return playerPoseImages.fall;
+  if (!player.onGround) return playerPoseImages.jump;
+  if (Math.abs(player.vx) > 38) {
+    const walkFrame = Math.floor(state.visualTime * Math.max(3, Math.abs(player.vx) / 18)) % 2;
+    return walkFrame === 0 ? playerPoseImages.walk1 : playerPoseImages.walk2;
+  }
+  if (Math.abs(player.vx) > 8) return playerPoseImages.stand;
+  return playerPoseImages.idle;
 }
 
 function drawPlayer() {
@@ -1398,16 +1438,24 @@ function drawPlayer() {
   }
   ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
   ctx.scale(player.facing, 1);
-  const palette = {
-    h: player.dashTimer > 0 ? "#fff3aa" : "#ff4f93",
-    s: "#fff7fc",
-    f: "#ffd8bf",
-    e: "#111827",
-    c: player.dashTimer > 0 ? "#ffe27a" : "#5f79c7",
-    b: "#19263b",
-    j: player.dashTimer > 0 ? "#fff4c1" : "#ff9fbe",
-  };
-  drawPixelSprite(currentPlayerSprite(), palette, -4, -7, 1);
+  const pose = currentPlayerPoseImage();
+  if (pose && pose.complete && pose.naturalWidth) {
+    const scale = 0.17;
+    const drawW = pose.naturalWidth * scale;
+    const drawH = pose.naturalHeight * scale;
+    ctx.drawImage(pose, -drawW / 2, player.h / 2 - drawH, drawW, drawH);
+  } else {
+    const palette = {
+      h: player.dashTimer > 0 ? "#fff3aa" : "#ff4f93",
+      s: "#fff7fc",
+      f: "#ffd8bf",
+      e: "#111827",
+      c: player.dashTimer > 0 ? "#ffe27a" : "#5f79c7",
+      b: "#19263b",
+      j: player.dashTimer > 0 ? "#fff4c1" : "#ff9fbe",
+    };
+    drawPixelSprite(currentPlayerSprite(), palette, -4, -5, 1);
+  }
   ctx.restore();
 }
 
