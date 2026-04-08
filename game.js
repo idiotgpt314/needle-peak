@@ -1364,4 +1364,51 @@ showOverlay(
 );
 bindTouchControls();
 respawnAtCheckpoint();
+
+window.__needlePeakDebug = {
+  getSnapshot() {
+    return {
+      mode: state.mode,
+      roomId: state.currentRoomId,
+      roomName: currentRoom().name,
+      timer: state.timer,
+      deaths: state.deaths,
+      berries: state.berriesCollected.size,
+      bestTime: state.bestTime,
+      bestDeaths: state.bestDeaths,
+      dashCharges: player.dashCharges,
+      x: player.x,
+      y: player.y,
+      vx: player.vx,
+      vy: player.vy,
+      transitionCooldown: state.transitionCooldown,
+      roomIntroTimer: state.roomIntroTimer,
+    };
+  },
+  teleport(roomId, x, y) {
+    if (!rooms.has(roomId)) return false;
+    state.currentRoomId = roomId;
+    resetRoomDynamics(currentRoom());
+    player.x = x;
+    player.y = y;
+    player.vx = 0;
+    player.vy = 0;
+    state.transitionCooldown = 0;
+    state.roomIntroTimer = 0;
+    player.trail = [];
+    return true;
+  },
+  roomIds() {
+    return [...roomOrder];
+  },
+  currentRoomMeta() {
+    const room = currentRoom();
+    return {
+      id: room.id,
+      exits: room.exits,
+      spawn: room.spawn,
+    };
+  },
+};
+
 requestAnimationFrame(frame);

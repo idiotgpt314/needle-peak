@@ -5,3 +5,4 @@ layout-*.png
 hud-built-in*.png
 opt-pass.png
 .vercel
+node_modules/
