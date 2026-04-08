@@ -105,37 +105,68 @@ const STARFIELD = Array.from({ length: 28 }, (_, index) => ({
   alpha: 0.05 + (index % 4) * 0.018,
 }));
 
-const PLAYER_POSE_FILES = {
-  stand: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_stand.png",
-  idle: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_idle.png",
-  walk1: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_walk1.png",
-  walk2: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_walk2.png",
-  jump: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_jump.png",
-  fall: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_fall.png",
-  dash: "./assets/kenney-platformer-characters/PNG/Player/Poses/player_skid.png",
+const PLAYER_SHEET_FILE = "./assets/platformer-sprite/hero.png";
+const PLAYER_FRAME_SIZE = 32;
+const PLAYER_WALK_SEQUENCE = ["walkA", "walkB", "walkC", "walkD"];
+const PLAYER_FRAME_DEFS = {
+  idle: { frame: 1, offset: { x: 0, y: 0 } },
+  stand: { frame: 1, offset: { x: 0, y: 0 } },
+  walkA: { frame: 0, offset: { x: 0, y: 0 } },
+  walkB: { frame: 2, offset: { x: 0, y: 0 } },
+  walkC: { frame: 3, offset: { x: 0, y: 0 } },
+  walkD: { frame: 4, offset: { x: 0, y: 0 } },
+  jump: { frame: 5, offset: { x: 0, y: 0 } },
+  fall: { frame: 7, offset: { x: 0, y: 0 } },
+  dash: { frame: 7, offset: { x: 0, y: 0 } },
+  brake: { frame: 4, offset: { x: 0, y: 0 } },
 };
+const PLAYER_SPRITE_DRAW_W = 16;
+const PLAYER_SPRITE_DRAW_H = 16;
 
-const playerPoseImages = Object.fromEntries(
-  Object.entries(PLAYER_POSE_FILES).map(([key, src]) => {
-    const image = new Image();
-    image.src = src;
-    return [key, image];
-  })
-);
+const playerSheetImage = new Image();
+playerSheetImage.src = PLAYER_SHEET_FILE;
+const playerPoseImages = {};
 
-const PLAYER_POSE_OFFSETS = {
-  idle: { x: 0, y: 0 },
-  stand: { x: 0, y: 0 },
-  // Kenney's frames are not perfectly centered inside the 80x110 sheet.
-  // These offsets keep the body anchored instead of wobbling frame-to-frame.
-  walk1: { x: 1, y: 0 },
-  walk2: { x: -1, y: 0 },
-  jump: { x: 0, y: 0 },
-  fall: { x: -1, y: 0 },
-  dash: { x: -3, y: 0 },
-};
-const PLAYER_SPRITE_DRAW_W = 14;
-const PLAYER_SPRITE_DRAW_H = 19;
+function buildPlayerFrame(frameIndex) {
+  const frameCanvas = document.createElement("canvas");
+  frameCanvas.width = PLAYER_FRAME_SIZE;
+  frameCanvas.height = PLAYER_FRAME_SIZE;
+  const frameCtx = frameCanvas.getContext("2d", { willReadFrequently: true });
+  frameCtx.imageSmoothingEnabled = false;
+  frameCtx.drawImage(
+    playerSheetImage,
+    frameIndex * PLAYER_FRAME_SIZE,
+    0,
+    PLAYER_FRAME_SIZE,
+    PLAYER_FRAME_SIZE,
+    0,
+    0,
+    PLAYER_FRAME_SIZE,
+    PLAYER_FRAME_SIZE
+  );
+
+  const imageData = frameCtx.getImageData(0, 0, PLAYER_FRAME_SIZE, PLAYER_FRAME_SIZE);
+  const { data } = imageData;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] === 255 && data[i + 1] === 0 && data[i + 2] === 255) {
+      data[i + 3] = 0;
+    }
+  }
+  frameCtx.putImageData(imageData, 0, 0);
+  return frameCanvas;
+}
+
+function buildPlayerFrames() {
+  Object.entries(PLAYER_FRAME_DEFS).forEach(([key, def]) => {
+    playerPoseImages[key] = buildPlayerFrame(def.frame);
+  });
+}
+
+if (playerSheetImage.complete) {
+  buildPlayerFrames();
+} else {
+  playerSheetImage.addEventListener("load", buildPlayerFrames, { once: true });
+}
 
 const roomDefs = [
   {
@@ -1161,11 +1192,11 @@ function updatePlayer(dt) {
 
   const groundedMovement = player.onGround && inputX !== 0 && Math.abs(player.vx) > 28;
   if (groundedMovement) {
-    const cadence = Math.abs(player.vx) > 70 ? 0.16 : 0.21;
+    const cadence = Math.abs(player.vx) > 70 ? 0.11 : 0.14;
     player.walkFrameTimer += dt;
     if (player.walkFrameTimer >= cadence) {
       player.walkFrameTimer -= cadence;
-      player.walkFrame = player.walkFrame === 0 ? 1 : 0;
+      player.walkFrame = (player.walkFrame + 1) % PLAYER_WALK_SEQUENCE.length;
     }
   } else {
     player.walkFrame = 0;
@@ -1474,20 +1505,32 @@ function currentPlayerSprite() {
   return standing;
 }
 
-function currentPlayerPoseImage() {
-  if (player.dashTimer > 0) return { image: playerPoseImages.dash, offset: PLAYER_POSE_OFFSETS.dash };
-  if (!player.onGround && player.vy > 40) return { image: playerPoseImages.fall, offset: PLAYER_POSE_OFFSETS.fall };
-  if (!player.onGround) return { image: playerPoseImages.jump, offset: PLAYER_POSE_OFFSETS.jump };
-  if (player.moveIntentX !== 0 && Math.abs(player.vx) > 28) {
-    if (player.walkFrame === 0) {
-      return { image: playerPoseImages.stand, offset: PLAYER_POSE_OFFSETS.stand };
-    }
-    return { image: playerPoseImages.walk2, offset: PLAYER_POSE_OFFSETS.walk2 };
-  }
+function currentPlayerAnimationState() {
+  if (player.dashTimer > 0) return "dash";
+  if (!player.onGround && player.vy > 34) return "fall";
+  if (!player.onGround) return "jump";
+  if (player.moveIntentX !== 0 && Math.abs(player.vx) > 28) return "walk";
   if (Math.abs(player.vx) > 18 && player.moveIntentX !== 0 && Math.sign(player.vx) !== Math.sign(player.moveIntentX)) {
-    return { image: playerPoseImages.stand, offset: PLAYER_POSE_OFFSETS.stand };
+    return "brake";
   }
-  return { image: playerPoseImages.idle, offset: PLAYER_POSE_OFFSETS.idle };
+  return "idle";
+}
+
+function currentPlayerPoseImage() {
+  const animationState = currentPlayerAnimationState();
+  let key = "idle";
+  if (animationState === "dash") key = "dash";
+  else if (animationState === "fall") key = "fall";
+  else if (animationState === "jump") key = "jump";
+  else if (animationState === "brake") key = "brake";
+  else if (animationState === "walk") key = PLAYER_WALK_SEQUENCE[player.walkFrame];
+
+  const frameDef = PLAYER_FRAME_DEFS[key];
+  return {
+    key,
+    image: playerPoseImages[key],
+    offset: frameDef.offset,
+  };
 }
 
 function drawPlayer() {
@@ -1509,7 +1552,7 @@ function drawPlayer() {
   ctx.scale(player.facing, 1);
   const poseInfo = currentPlayerPoseImage();
   const pose = poseInfo?.image;
-  const poseOffset = poseInfo?.offset || PLAYER_POSE_OFFSETS.idle;
+  const poseOffset = poseInfo?.offset || PLAYER_FRAME_DEFS.idle.offset;
   if (pose && pose.complete && pose.naturalWidth) {
     const drawX = Math.round(-PLAYER_SPRITE_DRAW_W / 2 + poseOffset.x);
     const drawY = Math.round(player.h / 2 - PLAYER_SPRITE_DRAW_H + poseOffset.y);
@@ -1641,4 +1684,32 @@ showOverlay(
 );
 bindTouchControls();
 respawnAtCheckpoint();
+
+window.__needlePeakDebug = {
+  getSnapshot() {
+    const pose = currentPlayerPoseImage();
+    return {
+      mode: state.mode,
+      roomId: state.currentRoomId,
+      roomName: currentRoom().name,
+      timer: state.timer,
+      deaths: state.deaths,
+      berries: state.berriesCollected.size,
+      bestTime: state.bestTime,
+      bestDeaths: state.bestDeaths,
+      dashCharges: player.dashCharges,
+      x: player.x,
+      y: player.y,
+      vx: player.vx,
+      vy: player.vy,
+      onGround: player.onGround,
+      moveIntentX: player.moveIntentX,
+      walkFrame: player.walkFrame,
+      animationState: currentPlayerAnimationState(),
+      poseKey: pose.key,
+      transitionCooldown: state.transitionCooldown,
+      roomIntroTimer: state.roomIntroTimer,
+    };
+  },
+};
 requestAnimationFrame(frame);
