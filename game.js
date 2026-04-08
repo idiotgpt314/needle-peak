@@ -123,6 +123,15 @@ const playerPoseImages = Object.fromEntries(
   })
 );
 
+const PLAYER_POSE_OFFSETS = {
+  idle: { x: 0, y: 0 },
+  stand: { x: 0, y: 0 },
+  walk1: { x: 0, y: 0 },
+  jump: { x: 0, y: 0 },
+  fall: { x: 0, y: 0 },
+  dash: { x: 0, y: 0 },
+};
+
 const roomDefs = [
   {
     id: "ridge-1",
@@ -1461,16 +1470,19 @@ function currentPlayerSprite() {
 }
 
 function currentPlayerPoseImage() {
-  if (player.dashTimer > 0) return playerPoseImages.dash;
-  if (!player.onGround && player.vy > 40) return playerPoseImages.fall;
-  if (!player.onGround) return playerPoseImages.jump;
+  if (player.dashTimer > 0) return { image: playerPoseImages.dash, offset: PLAYER_POSE_OFFSETS.dash };
+  if (!player.onGround && player.vy > 40) return { image: playerPoseImages.fall, offset: PLAYER_POSE_OFFSETS.fall };
+  if (!player.onGround) return { image: playerPoseImages.jump, offset: PLAYER_POSE_OFFSETS.jump };
   if (player.moveIntentX !== 0 && Math.abs(player.vx) > 28) {
-    return player.walkFrame === 0 ? playerPoseImages.walk1 : playerPoseImages.walk2;
+    if (player.walkFrame === 0) {
+      return { image: playerPoseImages.stand, offset: PLAYER_POSE_OFFSETS.stand };
+    }
+    return { image: playerPoseImages.walk1, offset: PLAYER_POSE_OFFSETS.walk1 };
   }
   if (Math.abs(player.vx) > 18 && player.moveIntentX !== 0 && Math.sign(player.vx) !== Math.sign(player.moveIntentX)) {
-    return playerPoseImages.stand;
+    return { image: playerPoseImages.stand, offset: PLAYER_POSE_OFFSETS.stand };
   }
-  return playerPoseImages.idle;
+  return { image: playerPoseImages.idle, offset: PLAYER_POSE_OFFSETS.idle };
 }
 
 function drawPlayer() {
@@ -1490,12 +1502,14 @@ function drawPlayer() {
   }
   ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
   ctx.scale(player.facing, 1);
-  const pose = currentPlayerPoseImage();
+  const poseInfo = currentPlayerPoseImage();
+  const pose = poseInfo?.image;
+  const poseOffset = poseInfo?.offset || PLAYER_POSE_OFFSETS.idle;
   if (pose && pose.complete && pose.naturalWidth) {
     const scale = 0.17;
     const drawW = pose.naturalWidth * scale;
     const drawH = pose.naturalHeight * scale;
-    ctx.drawImage(pose, -drawW / 2, player.h / 2 - drawH, drawW, drawH);
+    ctx.drawImage(pose, -drawW / 2 + poseOffset.x, player.h / 2 - drawH + poseOffset.y, drawW, drawH);
   } else {
     const palette = {
       h: player.dashTimer > 0 ? "#fff3aa" : "#ff4f93",
