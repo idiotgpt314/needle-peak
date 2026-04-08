@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Needle Peak</title>
+  <meta name="description" content="Needle Peak is a brutally difficult browser precision platformer with dashes, wall jumps, checkpoints, and a long summit climb.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%2309131f' d='M0 0h64v64H0z'/%3E%3Cpath fill='%23ffd166' d='M10 52 31 10l8 15 4-8 11 35H10Z'/%3E%3Cpath fill='%23ff6fae' d='M28 38h8v12h-8z'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hud-panel">
+      <p class="eyebrow">Precision Platformer Prototype</p>
+      <h1>Needle Peak</h1>
+      <p class="deck">
+        A deliberately cruel mountain run with dash refills, crumble chains, moving platforms,
+        wall jumps, checkpoints, berries, and a long room route.
+      </p>
+      <div class="stats-grid">
+        <div>
+          <span class="label">Room</span>
+          <strong id="roomName">Ridge 1</strong>
+        </div>
+        <div>
+          <span class="label">Progress</span>
+          <strong id="progressStat">1 / 12</strong>
+        </div>
+        <div>
+          <span class="label">Deaths</span>
+          <strong id="deathCount">0</strong>
+        </div>
+        <div>
+          <span class="label">Berries</span>
+          <strong id="berryCount">0 / 0</strong>
+        </div>
+        <div>
+          <span class="label">Time</span>
+          <strong id="timer">00:00.000</strong>
+        </div>
+        <div>
+          <span class="label">Best Time</span>
+          <strong id="bestTime">--:--.---</strong>
+        </div>
+        <div>
+          <span class="label">Best Deaths</span>
+          <strong id="bestDeaths">--</strong>
+        </div>
+      </div>
+      <div class="control-list">
+        <p><span>Move</span> WASD or Arrow Keys</p>
+        <p><span>Jump</span> Z, C, Space</p>
+        <p><span>Dash</span> X, Shift</p>
+        <p><span>Restart Room</span> R</p>
+        <p><span>Pause</span> Escape</p>
+      </div>
+      <p class="goal-copy">Reach the summit gate. Crystals restore your dash. Springs launch harder than mercy.</p>
+    </section>
+
+    <section class="game-panel">
+      <canvas id="game" width="384" height="224" aria-label="Needle Peak game canvas"></canvas>
+      <div id="overlay" class="overlay">
+        <div class="overlay-card">
+          <p class="overlay-kicker">Needle Peak</p>
+          <h2 id="overlayTitle">Start Climb</h2>
+          <p id="overlayBody">
+            Built for hard resets and tighter movement. Expect coyote time, buffered jumps, one dash,
+            wall jumps, and rooms that assume you use all of them.
+          </p>
+          <button id="startButton" type="button">Begin Run</button>
+        </div>
+      </div>
+      <div class="touch-controls" aria-label="Touch controls">
+        <div class="touch-move">
+          <button class="touch-btn touch-small" data-input="left" type="button" aria-label="Move left">◀</button>
+          <button class="touch-btn touch-small" data-input="right" type="button" aria-label="Move right">▶</button>
+        </div>
+        <div class="touch-actions">
+          <button class="touch-btn" data-input="jump" type="button" aria-label="Jump">Jump</button>
+          <button class="touch-btn touch-dash" data-input="dash" type="button" aria-label="Dash">Dash</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./game.js"></script>
+</body>
+</html>

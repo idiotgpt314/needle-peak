@@ -1,0 +1,227 @@
+:root {
+  --bg-top: #09131f;
+  --bg-mid: #17304d;
+  --bg-bottom: #50738b;
+  --panel: rgba(7, 14, 25, 0.78);
+  --panel-border: rgba(193, 226, 255, 0.18);
+  --text: #f5f7fb;
+  --muted: #c0cfdf;
+  --accent: #ffd166;
+  --danger: #ff6b6b;
+  --mint: #81f4e1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top, rgba(255, 209, 102, 0.16), transparent 25%),
+    linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 45%, var(--bg-bottom) 100%);
+}
+
+.page-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 24px;
+  padding: 24px;
+}
+
+.hud-panel,
+.game-panel {
+  border: 1px solid var(--panel-border);
+  border-radius: 24px;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 22px 64px rgba(0, 0, 0, 0.28);
+}
+
+.hud-panel {
+  padding: 28px;
+}
+
+.eyebrow,
+.overlay-kicker,
+.label {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  color: var(--accent);
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-family: "Syne", sans-serif;
+  line-height: 0.92;
+}
+
+h1 {
+  margin-top: 10px;
+  font-size: clamp(2.8rem, 5vw, 4.8rem);
+}
+
+.deck,
+.goal-copy,
+#overlayBody {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 28px 0;
+}
+
+.stats-grid div {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.stats-grid strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.1rem;
+}
+
+.control-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.control-list p {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--muted);
+}
+
+.control-list span {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.game-panel {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  overflow: hidden;
+}
+
+.touch-controls {
+  display: none;
+}
+
+canvas {
+  width: min(100%, 1200px);
+  aspect-ratio: 12 / 7;
+  image-rendering: pixelated;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(159, 215, 255, 0.2), rgba(12, 21, 33, 0.55));
+}
+
+.overlay {
+  position: absolute;
+  inset: 18px;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 10, 18, 0.56);
+  transition: opacity 160ms ease;
+}
+
+.overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.overlay-card {
+  max-width: 520px;
+  padding: 28px;
+  border-radius: 22px;
+  background: rgba(9, 16, 26, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+button {
+  margin-top: 12px;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font: inherit;
+  font-weight: 700;
+  color: #152030;
+  background: linear-gradient(135deg, #ffd166, #fff2b0);
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(1.04);
+}
+
+@media (max-width: 960px) {
+  .page-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (pointer: coarse), (max-width: 960px) {
+  .game-panel {
+    padding-bottom: 128px;
+  }
+
+  .touch-controls {
+    position: absolute;
+    inset: auto 18px 18px 18px;
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 18px;
+    pointer-events: none;
+  }
+
+  .touch-move,
+  .touch-actions {
+    display: flex;
+    gap: 12px;
+    pointer-events: auto;
+  }
+
+  .touch-btn {
+    min-width: 78px;
+    min-height: 78px;
+    padding: 0 16px;
+    border-radius: 24px;
+    font-size: 1rem;
+    color: var(--text);
+    background: rgba(9, 16, 26, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    touch-action: manipulation;
+  }
+
+  .touch-btn:active,
+  .touch-btn.is-active {
+    background: rgba(255, 209, 102, 0.82);
+    color: #101826;
+  }
+
+  .touch-small {
+    min-width: 68px;
+  }
+
+  .touch-dash {
+    background: rgba(129, 244, 225, 0.16);
+  }
+}
