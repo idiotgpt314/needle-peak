@@ -124,7 +124,7 @@ const playerPoseImages = Object.fromEntries(
   })
 );
 
-const PLAYER_WALK_SEQUENCE = ["walk1"];
+const PLAYER_WALK_SEQUENCE = ["stand"];
 const PLAYER_POSE_OFFSETS = {
   idle: { x: 0, y: 0 },
   stand: { x: 0, y: 0 },
